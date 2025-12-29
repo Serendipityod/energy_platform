@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>组织管理模块 - 广西国企数据模拟版</title>
+    <!-- 引入 Element Plus 样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-plus/dist/index.css" />
+    <!-- 引入 Vue 3 -->
+    <script src="https://unpkg.com/vue@3.3.4/dist/vue.global.js"></script>
+    <!-- 引入 Element Plus 组件库 -->
+    <script src="https://unpkg.com/element-plus"></script>
+    <!-- 引入 Element Plus 图标库 -->
+    <script src="https://unpkg.com/@element-plus/icons-vue"></script>
+    <!-- 引入 SheetJS -->
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+
+    <style>
+        body { margin: 0; padding: 0; background-color: #f5f7fa; font-family: 'Helvetica Neue', Helvetica, 'PingFang SC', 'Microsoft YaHei', Arial, sans-serif; }
+        .app-container { padding: 20px; max-width: 1600px; margin: 0 auto; }
+        .box-card { margin-bottom: 15px; border-radius: 4px; border: 1px solid #e4e7ed; position: relative; }
+        .search-form .el-form-item { margin-bottom: 0; margin-right: 20px; }
+        .toolbar { margin-bottom: 15px; display: flex; gap: 10px; }
+        
+        /* 提示语样式 */
+        .form-tip { font-size: 12px; color: #909399; line-height: 1.5; margin-top: 8px; margin-bottom: 5px; }
+
+        .folder-icon { color: #E6A23C; margin-right: 5px; }
+        .file-icon { color: #409EFF; margin-right: 5px; }
+        .el-form-item.is-required:not(.is-no-asterisk) > .el-form-item__label:before { margin-right: 4px; }
+        
+        /* 翻页固定底部样式 */
+        .table-card-content { position: relative; min-height: 600px; display: flex; flex-direction: column; }
+        .flex-table { flex: 1; }
+        .pagination-fixed { 
+            margin-top: 0; 
+            padding: 15px 20px; 
+            background: #fff; 
+            border-top: 1px solid #ebeef5; 
+            display: flex; 
+            justify-content: flex-end; 
+            align-items: center; 
+            position: sticky; 
+            bottom: 0; 
+            z-index: 10; 
+        }
+
+        /* 分页组件样式定制 */
+        .el-pagination { font-weight: normal; }
+        .el-pagination .el-pager li {
+            border: 1px solid transparent;
+            border-radius: 4px;
+            margin: 0 4px;
+            min-width: 32px;
+            font-weight: normal;
+        }
+        .el-pagination .el-pager li.is-active {
+            border-color: #409EFF;
+            color: #409EFF;
+            background-color: #fff;
+        }
+        .el-pagination .el-select { margin-left: 10px; }
+        .el-pagination .el-pagination__jump { margin-left: 10px; }
+
+        /* 导入弹窗样式 */
+        .upload-demo { text-align: center; margin: 20px 0; }
+        .import-result { margin-top: 20px; padding: 15px; background-color: #f5f7fa; border-radius: 4px; }
+        .result-summary { font-size: 16px; margin-bottom: 10px; font-weight: bold; }
+        .success-text { color: #67C23A; margin-right: 15px; }
+        .fail-text { color: #F56C6C; }
+
+        /* 查看模式下的样式微调 */
+        .view-mode .el-input__wrapper, 
+        .view-mode .el-textarea__inner {
+            background-color: #f5f7fa;
+            box-shadow: none !important;
+            border: 1px solid #e4e7ed;
+            color: #606266;
+            cursor: default;
+        }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <div class="app-container">
+        <!-- 搜索栏 -->
+        <el-card shadow="never" class="box-card">
+            <el-form :inline="true" :model="queryParams" class="search-form">
+                <el-form-item label="组织名称">
+                    <el-input v-model="queryParams.name" placeholder="搜索一级/二级/三级组织" clearable style="width: 220px;"></el-input>
+                </el-form-item>
+                <el-form-item label="企业性质">
+                    <el-select v-model="queryParams.nature" placeholder="请选择企业性质" clearable style="width: 200px;">
+                        <el-option v-for="item in natureOptions" :key="item" :label="item" :value="item"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item>
+                    <el-button type="primary" :icon="Search" @click="handleSearch">查询</el-button>
+                    <el-button :icon="Refresh" @click="resetQuery">重置</el-button>
+                </el-form-item>
+            </el-form>
+        </el-card>
+
+        <!-- 列表区域 -->
+        <el-card shadow="never" class="box-card" body-style="padding: 20px 0 0 0">
+            <div class="table-card-content" style="padding: 0 20px;">
+                <div class="toolbar">
+                    <el-button type="primary" :icon="Plus" @click="handleAdd">新增组织</el-button>
+                    <el-button type="success" plain :icon="Upload" @click="openImportDialog">批量导入</el-button>
+                    <el-button type="warning" plain :icon="Download" @click="handleExport">导出数据</el-button>
+                    <el-button type="danger" plain :icon="Delete" :disabled="selection.length === 0" @click="handleBatchDelete">删除</el-button>
+                </div>
+
+                <!-- 树形表格 -->
+                <el-table
+                    v-loading="loading"
+                    :data="tableData"
+                    style="width: 100%"
+                    row-key="id"
+                    border
+                    default-expand-all
+                    :tree-props="{ children: 'children', hasChildren: 'hasChildren' }"
+                    @selection-change="handleSelectionChange"
+                    class="flex-table"
+                >
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column label="组织名称" min-width="280" show-overflow-tooltip>
+                        <template #default="scope">
+                            <!-- 有子级显示文件夹，无子级显示文件 -->
+                            <el-icon v-if="scope.row.children && scope.row.children.length > 0" class="folder-icon"><Folder /></el-icon>
+                            <el-icon v-else class="file-icon"><Document /></el-icon>
+                            <span style="font-weight: 500;">{{ scope.row.name }}</span>
+                            <!-- 层级标签 -->
+                            <el-tag size="small" effect="plain" style="margin-left: 8px; border: none;" :type="scope.row.levelTag === '一级' ? 'danger' : (scope.row.levelTag === '二级' ? 'warning' : 'info')">
+                                {{ scope.row.levelTag }}
+                            </el-tag>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="nature" label="企业性质" width="140" align="center"></el-table-column>
+                    <el-table-column prop="creditCode" label="信用代码" width="180" align="center">
+                        <template #default="scope">{{ scope.row.creditCode || '-' }}</template>
+                    </el-table-column>
+                    <el-table-column prop="regTime" label="注册入市时间" width="120" align="center"></el-table-column>
+                    <el-table-column prop="meterCount" label="计量点数" width="100" align="center">
+                        <template #default="scope"><el-tag type="info">{{ scope.row.meterCount }}</el-tag></template>
+                    </el-table-column>
+                    <el-table-column prop="admin" label="管理员" width="100" align="center"></el-table-column>
+                    <el-table-column prop="contact" label="联系方式" width="140" align="center">
+                        <template #default="scope">{{ formatPhone(scope.row.contact) }}</template>
+                    </el-table-column>
+                    
+                    <el-table-column label="操作" width="220" align="center" fixed="right">
+                        <template #default="scope">
+                            <el-button link type="primary" size="small" @click="handleView(scope.row)">查看</el-button>
+                            <el-button link type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                            <el-button link type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <!-- 翻页 -->
+                <div class="pagination-fixed">
+                    <el-pagination
+                        v-model:current-page="pagination.currentPage"
+                        v-model:page-size="pagination.pageSize"
+                        :page-sizes="[10, 20, 50, 100]"
+                        layout="total, prev, pager, next, sizes, jumper"
+                        :total="pagination.total"
+                    ></el-pagination>
+                </div>
+            </div>
+        </el-card>
+
+        <!-- 新增/编辑/查看 弹窗 -->
+        <el-dialog 
+            v-model="dialogVisible" 
+            :title="dialogTitle" 
+            width="700px" 
+            :close-on-click-modal="false" 
+            destroy-on-close 
+            top="5vh"
+            append-to-body
+            :class="{ 'view-mode': isView }"
+        >
+            <el-form ref="formRef" :model="form" :rules="isView ? {} : rules" label-width="120px" style="padding-right: 20px;">
+                <el-form-item label="一级组织" prop="level1Name">
+                    <el-select v-model="form.level1Name" :disabled="isView" filterable allow-create default-first-option placeholder="请输入一级组织名称" style="width: 100%" @change="handleLevel1Change">
+                        <el-option v-for="item in level1Options" :key="item.value" :label="item.label" :value="item.value" />
+                    </el-select>
+                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="二级组织" prop="level2Name">
+                            <el-select 
+                                v-model="form.level2Name" 
+                                filterable 
+                                allow-create 
+                                default-first-option 
+                                placeholder="选填" 
+                                style="width: 100%"
+                                :disabled="!form.level1Name || isView"
+                            >
+                                <el-option v-for="item in level2Options" :key="item.value" :label="item.label" :value="item.value" />
+                            </el-select>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="三级组织" prop="level3Name">
+                            <el-input v-model="form.level3Name" :disabled="isView" placeholder="选填"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item label="企业性质" prop="nature">
+                    <el-select v-model="form.nature" :disabled="isView" placeholder="请选择企业性质" style="width: 100%;">
+                        <el-option v-for="item in natureOptions" :key="item" :label="item" :value="item"></el-option>
+                    </el-select>
+                </el-form-item>
+                <el-form-item label="信用代码" prop="creditCode">
+                    <el-input v-model="form.creditCode" :disabled="isView" placeholder="请输入18位统一社会信用代码" maxlength="18" show-word-limit></el-input>
+                </el-form-item>
+                <el-form-item label="注册入市时间" prop="regTime">
+                    <el-date-picker 
+                        v-model="form.regTime" 
+                        :disabled="isView"
+                        type="date" 
+                        placeholder="选择日期" 
+                        format="YYYY-MM-DD" 
+                        value-format="YYYY-MM-DD" 
+                        style="width: 100%;"
+                    ></el-date-picker>
+                </el-form-item>
+                <el-form-item label="组织地址" prop="area">
+                    <div style="display: flex; flex-direction: column; width: 100%; gap: 10px;">
+                        <el-cascader
+                            v-model="form.area"
+                            :options="areaOptions"
+                            :disabled="isView"
+                            placeholder="请选择省/市/区"
+                            style="width: 100%"
+                            clearable
+                        ></el-cascader>
+                        <el-input 
+                            v-model="form.detailAddress" 
+                            :disabled="isView"
+                            placeholder="请输入详细地址（街道/门牌号），失焦后自动识别经纬度" 
+                            @blur="!isView && autoGeoCode()"
+                        >
+                            <template #append v-if="!isView">
+                                <el-button :icon="Search" @click="autoGeoCode" title="手动触发识别"></el-button>
+                            </template>
+                        </el-input>
+                    </div>
+                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="经度" prop="longitude">
+                            <el-input v-model="form.longitude" :disabled="isView" placeholder="自动识别或手动输入"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="纬度" prop="latitude">
+                            <el-input v-model="form.latitude" :disabled="isView" placeholder="自动识别或手动输入"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item label="计量点个数" prop="meterCount">
+                    <el-input v-model="form.meterCount" disabled placeholder="系统自动生成"></el-input>
+                    <div class="form-tip">计量点信息维护后自动生成</div>
+                </el-form-item>
+                <el-row :gutter="20">
+                    <el-col :span="12">
+                        <el-form-item label="管理员" prop="admin">
+                            <el-input v-model="form.admin" :disabled="isView" placeholder="请输入管理员姓名"></el-input>
+                        </el-form-item>
+                    </el-col>
+                    <el-col :span="12">
+                        <el-form-item label="联系方式" prop="contact">
+                            <el-input v-model="form.contact" :disabled="isView" placeholder="请输入11位电话号码" maxlength="11"></el-input>
+                        </el-form-item>
+                    </el-col>
+                </el-row>
+                <el-form-item label="备注" prop="remark">
+                    <el-input v-model="form.remark" :disabled="isView" type="textarea" :rows="2" placeholder="请输入备注信息"></el-input>
+                </el-form-item>
+            </el-form>
+            <template #footer>
+                <div class="dialog-footer">
+                    <el-button v-if="isView" @click="dialogVisible = false">关 闭</el-button>
+                    <template v-else>
+                        <el-button @click="dialogVisible = false">取 消</el-button>
+                        <el-button type="primary" @click="submitForm">保 存</el-button>
+                        <el-button v-if="dialogTitle === '新增组织'" type="success" plain @click="submitAndContinue">保存并继续新增</el-button>
+                    </template>
+                </div>
+            </template>
+        </el-dialog>
+
+        <!-- 批量导入弹窗 -->
+        <el-dialog 
+            v-model="importDialogVisible" 
+            title="批量导入组织信息" 
+            width="800px" 
+            :close-on-click-modal="false" 
+            destroy-on-close 
+            append-to-body
+        >
+            <div style="margin-bottom: 20px;">
+                <span style="margin-right: 10px; font-weight: bold;">步骤1：</span>
+                <el-button type="primary" link @click="downloadTemplate">下载标准化Excel模板</el-button>
+                <div class="form-tip">请下载模板并按照规则填写，红色标题为必填项。</div>
+            </div>
+            <div style="border-top: 1px solid #eee; padding-top: 20px;">
+                <span style="font-weight: bold;">步骤2：上传填写好的文件</span>
+                <el-upload class="upload-demo" drag action="" :auto-upload="false" :on-change="handleFileChange" :show-file-list="false" accept=".xlsx, .xls">
+                    <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+                    <div class="el-upload__text">将文件拖到此处，或 <em>点击上传</em></div>
+                    <template #tip><div class="el-upload__tip">只能上传 xlsx/xls 文件，且不超过 5MB</div></template>
+                </el-upload>
+            </div>
+            <div v-if="importResult.total > 0" class="import-result">
+                <div class="result-summary">
+                    导入结果：共解析 <span style="font-weight:bold">{{ importResult.total }}</span> 条数据，
+                    <span class="success-text">成功 {{ importResult.successCount }} 条</span>，
+                    <span class="fail-text">失败 {{ importResult.failCount }} 条</span>
+                </div>
+                <div v-if="importResult.failList.length > 0">
+                    <div style="margin-bottom: 10px; display: flex; justify-content: space-between; align-items: center;">
+                        <span style="color: #F56C6C; font-size: 14px;">以下为导入失败的数据：</span>
+                        <el-button type="danger" size="small" @click="downloadErrorReport">下载失败数据清单</el-button>
+                    </div>
+                    <el-table :data="importResult.failList" height="250" border size="small" style="width: 100%">
+                        <el-table-column prop="rowNum" label="行号" width="80" align="center"></el-table-column>
+                        <el-table-column prop="level1Name" label="一级组织" width="150" show-overflow-tooltip></el-table-column>
+                        <el-table-column prop="creditCode" label="信用代码" width="180" show-overflow-tooltip></el-table-column>
+                        <el-table-column prop="reason" label="失败原因" min-width="200">
+                            <template #default="scope"><span style="color: #F56C6C;">{{ scope.row.reason }}</span></template>
+                        </el-table-column>
+                    </el-table>
+                </div>
+                <div v-else style="margin-top: 10px; color: #67C23A;"><el-icon><CircleCheckFilled /></el-icon> 所有数据格式校验通过，已加入待处理队列。</div>
+            </div>
+            <template #footer>
+                <div class="dialog-footer"><el-button @click="importDialogVisible = false">关 闭</el-button></div>
+            </template>
+        </el-dialog>
+    </div>
+</div>
+
+<script>
+    const { createApp, ref, reactive } = Vue;
+    const { ElMessage, ElMessageBox, ElLoading } = ElementPlus;
+    const { Search, Refresh, Plus, Upload, Download, Delete, Folder, Document, UploadFilled, CircleCheckFilled } = ElementPlusIconsVue;
+
+    const app = createApp({
+        setup() {
+            // --- 基础配置 ---
+            const natureOptions = ['国有企业', '集体企业', '民营企业', '混合所有制企业', '外资企业', '政府单位', '事业单位'];
+            const level1Options = ref([
+                { value: '广西北投信创科技投资集团', label: '广西北投信创科技投资集团' },
+                { value: '南宁轨道交通集团', label: '南宁轨道交通集团' },
+                { value: '广西路桥工程集团', label: '广西路桥工程集团' },
+                { value: '广西投资集团有限公司', label: '广西投资集团有限公司' },
+                { value: '广西北部湾国际港务集团', label: '广西北部湾国际港务集团' }
+            ]);
+            const level2Options = ref([{ value: '北投信创技术分公司', label: '北投信创技术分公司' }]);
+
+            const areaOptions = [
+                {
+                    value: 'Guangxi', label: '广西壮族自治区',
+                    children: [
+                        { value: 'Nanning', label: '南宁市', children: [{ value: 'Qingxiu', label: '青秀区' }, { value: 'Xingning', label: '兴宁区' }] },
+                        { value: 'Liuzhou', label: '柳州市', children: [{ value: 'Chengzhong', label: '城中区' }] }
+                    ]
+                },
+                {
+                    value: 'Guangdong', label: '广东省',
+                    children: [
+                        { value: 'Guangzhou', label: '广州市', children: [{ value: 'Tianhe', label: '天河区' }] }
+                    ]
+                }
+            ];
+
+            // --- 状态 ---
+            const loading = ref(false);
+            const dialogVisible = ref(false);
+            const importDialogVisible = ref(false);
+            const dialogTitle = ref('新增组织');
+            const isView = ref(false);
+            const formRef = ref(null);
+            const selection = ref([]);
+            const pagination = reactive({ currentPage: 1, pageSize: 10, total: 25 }); // 模拟25条数据
+            const queryParams = reactive({ name: '', nature: '' });
+            const importResult = reactive({ total: 0, successCount: 0, failCount: 0, failList: [], successList: [] });
+
+            // --- 模拟数据：广西国企架构 (2页数据模拟，当前展示Page 1) ---
+            const tableData = ref([
+                {
+                    id: 1, 
+                    name: '广西投资集团有限公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500001982223456', meterCount: 45, admin: '张伟', contact: '13877110001', 
+                    regTime: '1996-03-18', area: ['Guangxi', 'Nanning', 'Qingxiu'], detailAddress: '民歌湖广场A座', longitude: '108.3912', latitude: '22.8015',
+                    children: [
+                        {
+                            id: 11,
+                            name: '广西广投能源集团有限公司',
+                            levelTag: '二级',
+                            nature: '国有企业', creditCode: '914500001983334567', meterCount: 20, admin: '李强', contact: '13977110002',
+                            regTime: '2003-05-20', area: [], detailAddress: '', longitude: '', latitude: '',
+                            children: [
+                                {
+                                    id: 111,
+                                    name: '广投北海发电有限公司',
+                                    levelTag: '三级',
+                                    nature: '国有企业', creditCode: '914505001984445678', meterCount: 12, admin: '王刚', contact: '13777110003',
+                                    regTime: '2010-09-10', children: []
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 2, 
+                    name: '广西北部湾投资集团有限公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500006717551234', meterCount: 38, admin: '韦海峰', contact: '13877110004', 
+                    regTime: '2008-02-15', area: ['Guangxi', 'Nanning', 'Qingxiu'], detailAddress: '飞云路6号', longitude: '108.3945', latitude: '22.7932',
+                    children: [
+                        {
+                            id: 21,
+                            name: '广西北投信创科技投资集团',
+                            levelTag: '二级',
+                            nature: '国有企业', creditCode: '91450100XXXXXXXX01', meterCount: 15, admin: '陈明', contact: '13677110005',
+                            regTime: '2020-01-15', area: [], detailAddress: '技术中心', longitude: '', latitude: '',
+                            children: [
+                                {
+                                    id: 211,
+                                    name: '北投信创软件研发中心',
+                                    levelTag: '三级',
+                                    nature: '国有企业', creditCode: '91450100XXXXXXXX99', meterCount: 5, admin: '刘洋', contact: '13577110006',
+                                    regTime: '2021-06-01', children: []
+                                }
+                            ]
+                        }
+                    ]
+                },
+                {
+                    id: 3, 
+                    name: '广西交通投资集团有限公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500006777661234', meterCount: 60, admin: '赵敏', contact: '13477110007', 
+                    regTime: '2008-07-28', area: ['Guangxi', 'Nanning', 'Qingxiu'], detailAddress: '民族大道152号', longitude: '108.3888', latitude: '22.8123',
+                    children: [
+                        {
+                            id: 31,
+                            name: '广西高速公路投资有限公司',
+                            levelTag: '二级',
+                            nature: '国有企业', creditCode: '914500007888772345', meterCount: 30, admin: '周杰', contact: '13377110008',
+                            regTime: '2009-03-12', children: []
+                        }
+                    ]
+                },
+                {
+                    id: 4, 
+                    name: '广西北部湾国际港务集团有限公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500006699881234', meterCount: 55, admin: '吴平', contact: '13277110009', 
+                    regTime: '2007-02-14', area: ['Guangxi', 'Nanning', 'Qingxiu'], detailAddress: '港务大厦', longitude: '108.3750', latitude: '22.8080',
+                    children: [
+                        {
+                            id: 41,
+                            name: '广西北港大数据有限公司',
+                            levelTag: '二级',
+                            nature: '国有企业', creditCode: '914501008999001234', meterCount: 8, admin: '郑浩', contact: '13177110010',
+                            regTime: '2018-11-11', children: []
+                        }
+                    ]
+                },
+                {
+                    id: 5, 
+                    name: '广西机场管理集团有限责任公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500007565431234', meterCount: 25, admin: '孙俪', contact: '13077110011', 
+                    regTime: '2003-12-25', area: ['Guangxi', 'Nanning', 'Qingxiu'], detailAddress: '吴圩国际机场', longitude: '108.1720', latitude: '22.6070',
+                    children: []
+                },
+                {
+                    id: 6, 
+                    name: '广西农垦集团有限责任公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500001986661234', meterCount: 40, admin: '钱学森', contact: '18977110012', 
+                    regTime: '1951-01-01', area: ['Guangxi', 'Nanning', 'Qingxiu'], detailAddress: '民族大道32号', longitude: '108.3300', latitude: '22.8150',
+                    children: []
+                },
+                {
+                    id: 7, 
+                    name: '广西现代物流集团有限公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500002987771234', meterCount: 18, admin: '冯唐', contact: '18877110013', 
+                    regTime: '1995-05-18', area: ['Guangxi', 'Nanning', 'Xingning'], detailAddress: '物流园区1号', longitude: '108.3500', latitude: '22.8500',
+                    children: []
+                },
+                {
+                    id: 8, 
+                    name: '广西农村投资集团有限公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500003988881234', meterCount: 15, admin: '陈楚', contact: '18777110014', 
+                    regTime: '2016-03-30', area: ['Guangxi', 'Nanning', 'Qingxiu'], detailAddress: '厢竹大道', longitude: '108.3600', latitude: '22.8300',
+                    children: []
+                },
+                {
+                    id: 9, 
+                    name: '广西旅游发展集团有限公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914500004989991234', meterCount: 22, admin: '卫青', contact: '18677110015', 
+                    regTime: '2014-06-18', area: ['Guangxi', 'Nanning', 'Qingxiu'], detailAddress: '五象新区', longitude: '108.4000', latitude: '22.7500',
+                    children: []
+                },
+                {
+                    id: 10, 
+                    name: '广西柳州钢铁集团有限公司', 
+                    levelTag: '一级', 
+                    nature: '国有企业', creditCode: '914502005990001234', meterCount: 100, admin: '霍去病', contact: '18577110016', 
+                    regTime: '1958-07-01', area: ['Guangxi', 'Liuzhou', 'Chengzhong'], detailAddress: '北雀路117号', longitude: '109.4000', latitude: '24.3500',
+                    children: [
+                        {
+                            id: 101,
+                            name: '广西柳钢气体有限责任公司',
+                            levelTag: '二级',
+                            nature: '国有企业', creditCode: '914502006001111234', meterCount: 10, admin: '辛弃疾', contact: '18477110017',
+                            regTime: '2005-08-08', children: []
+                        }
+                    ]
+                }
+            ]);
+
+            const form = reactive({
+                id: null, level1Name: '', level2Name: '', level3Name: '', nature: '', creditCode: '', 
+                regTime: '', area: [], detailAddress: '', longitude: '', latitude: '',
+                meterCount: 0, admin: '', contact: '', remark: ''
+            });
+
+            // --- 逻辑方法 ---
+
+            const autoGeoCode = () => {
+                if (!form.detailAddress) return;
+                const loadingInstance = ElLoading.service({ target: '.el-dialog', text: '正在识别地址经纬度...' });
+                setTimeout(() => {
+                    loadingInstance.close();
+                    const baseLng = 108.3; const baseLat = 22.8;
+                    form.longitude = (baseLng + Math.random() * 0.1).toFixed(6);
+                    form.latitude = (baseLat + Math.random() * 0.1).toFixed(6);
+                    ElMessage.success('已自动识别经纬度');
+                }, 800);
+            };
+
+            const validateLevel2 = (rule, value, callback) => {
+                const isExistingLevel1 = level1Options.value.some(opt => opt.value === form.level1Name);
+                if (isExistingLevel1 && !value) callback(new Error('选择已有的一级组织时，二级组织必填'));
+                else callback();
+            };
+            const validateLevel3 = (rule, value, callback) => {
+                const isExistingLevel2 = level2Options.value.some(opt => opt.value === form.level2Name);
+                if (isExistingLevel2 && !value) callback(new Error('选择已有的二级组织时，三级组织必填'));
+                else callback();
+            };
+
+            const rules = {
+                level1Name: [{ required: true, message: '请输入或选择一级组织', trigger: 'change' }],
+                level2Name: [{ validator: validateLevel2, trigger: 'change' }, { validator: validateLevel2, trigger: 'blur' }],
+                level3Name: [{ validator: validateLevel3, trigger: 'change' }, { validator: validateLevel3, trigger: 'blur' }],
+                nature: [{ required: true, message: '请选择企业性质', trigger: 'change' }],
+                creditCode: [{ required: true, message: '请输入信用代码', trigger: 'blur' }, { pattern: /^.{18}$/, message: '信用代码必须为18位', trigger: 'blur' }],
+                admin: [{ required: true, message: '请输入管理员姓名', trigger: 'blur' }],
+                contact: [{ required: true, message: '请输入联系方式', trigger: 'blur' }, { pattern: /^\d{11}$/, message: '联系方式必须为11位纯数字', trigger: 'blur' }]
+            };
+
+            const handleLevel1Change = () => {
+                form.level2Name = '';
+                form.level3Name = '';
+                if (formRef.value) formRef.value.validateField('level2Name');
+            };
+
+            const openImportDialog = () => {
+                importResult.total = 0; importResult.successCount = 0; importResult.failCount = 0; importResult.failList = []; importResult.successList = [];
+                importDialogVisible.value = true;
+            };
+            
+            const downloadTemplate = () => {
+                const headers = ["一级组织(必填)", "二级组织", "三级组织", "企业性质(必填)", "信用代码(必填)", "注册入市时间(YYYY-MM-DD)", "管理员(必填)", "联系方式(必填)", "备注"];
+                const sampleData = [["示例集团公司", "示例分公司", "", "国有企业", "91450100XXXXXXXX88", "2023-01-15", "张三", "13800000000", "这是一个示例"]];
+                const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+                const wb = XLSX.utils.book_new();
+                XLSX.utils.book_append_sheet(wb, ws, "组织导入模板");
+                XLSX.writeFile(wb, "组织批量导入模板.xlsx");
+            };
+
+            const handleFileChange = (uploadFile) => {
+                const file = uploadFile.raw;
+                if (!file || (!file.name.endsWith('.xlsx') && !file.name.endsWith('.xls'))) { ElMessage.error('格式错误'); return; }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const jsonData = XLSX.utils.sheet_to_json(XLSX.read(e.target.result, { type: 'binary' }).Sheets[XLSX.read(e.target.result, { type: 'binary' }).SheetNames[0]], { header: 1 });
+                        validateAndParseData(jsonData);
+                    } catch (err) { ElMessage.error('解析失败'); }
+                };
+                reader.readAsBinaryString(file);
+            };
+
+            const validateAndParseData = (rows) => {
+                importResult.total = Math.max(0, rows.length - 1); importResult.failList = []; importResult.successList = [];
+                const existingCodes = tableData.value.map(item => item.creditCode);
+                for (let i = 1; i < rows.length; i++) {
+                    const row = rows[i];
+                    const [l1, l2, l3, nat, code, reg, adm, con, rem] = [0,1,2,3,4,5,6,7,8].map(idx => (row[idx]||'').toString().trim());
+                    const errs = [];
+                    if (!l1) errs.push('一级组织空'); if (!nat) errs.push('性质空'); if (!code) errs.push('代码空'); if (!adm) errs.push('管理员空'); if (!con) errs.push('联系方式空');
+                    if (con && !/^\d{11}$/.test(con)) errs.push('联系方式格式错误');
+                    if (code && !/^.{18}$/.test(code)) errs.push('代码格式错误');
+                    if (code && existingCodes.includes(code)) errs.push('代码重复');
+                    
+                    if (errs.length) importResult.failList.push({ rowNum: i+1, level1Name: l1, creditCode: code, reason: errs.join('; ') });
+                    else importResult.successList.push({ 
+                        id: Date.now()+i, name: l1, levelTag:'一级', nature:nat, creditCode:code, meterCount:0, admin:adm, contact:con, 
+                        regTime: reg || '',
+                        area: [], detailAddress: '', longitude: '', latitude: '',
+                        children:[] 
+                    });
+                }
+                importResult.failCount = importResult.failList.length; importResult.successCount = importResult.successList.length;
+                if (importResult.successList.length) { tableData.value.push(...importResult.successList); ElMessage.success(`导入成功 ${importResult.successCount} 条`); }
+            };
+            const downloadErrorReport = () => {
+                if (!importResult.failList.length) return;
+                const ws = XLSX.utils.aoa_to_sheet([["行号", "一级组织", "信用代码", "失败原因"], ...importResult.failList.map(i => [i.rowNum, i.level1Name, i.creditCode, i.reason])]);
+                XLSX.writeFile({ Sheets: { "Sheet1": ws }, SheetNames: ["Sheet1"] }, "组织导入失败数据清单.xlsx");
+            };
+
+            const handleAdd = () => { 
+                resetForm(); 
+                isView.value = false; 
+                dialogTitle.value = '新增组织'; 
+                dialogVisible.value = true; 
+            };
+
+            const handleEdit = (row) => { 
+                resetForm(); 
+                fillForm(row);
+                isView.value = false; 
+                dialogTitle.value = '编辑组织'; 
+                dialogVisible.value = true; 
+            };
+
+            const handleView = (row) => {
+                resetForm();
+                fillForm(row);
+                isView.value = true; 
+                dialogTitle.value = '查看组织信息';
+                dialogVisible.value = true;
+            };
+
+            const fillForm = (row) => {
+                Object.assign(form, row); 
+                form.level1Name = row.name; 
+                form.area = row.area || [];
+                form.detailAddress = row.detailAddress || '';
+                form.longitude = row.longitude || '';
+                form.latitude = row.latitude || '';
+            };
+
+            const handleDelete = (row) => { ElMessageBox.confirm(`确认删除组织“${row.name}”吗？`, '警告', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }).then(() => ElMessage.success('删除成功')); };
+            const handleBatchDelete = () => { ElMessageBox.confirm(`确认删除选中的 ${selection.value.length} 条记录吗？`, '警告', { confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning' }).then(() => ElMessage.success('批量删除成功')); };
+            const handleExport = () => { ElMessage.success('正在导出Excel文件...'); };
+            const submitForm = () => { formRef.value.validate((valid) => { if (valid) { ElMessage.success(form.id ? '修改成功' : '新增成功'); dialogVisible.value = false; } }); };
+            const submitAndContinue = () => { formRef.value.validate((valid) => { if (valid) { ElMessage.success('保存成功'); const k = form.nature; resetForm(); form.nature = k; } }); };
+            const resetForm = () => { 
+                if (formRef.value) formRef.value.resetFields(); 
+                Object.keys(form).forEach(k => form[k] = k==='meterCount'?0 : (Array.isArray(form[k]) ? [] : '')); 
+                form.id=null; 
+            };
+            const handleSelectionChange = (val) => selection.value = val;
+            const handleSearch = () => loading.value = true && setTimeout(() => loading.value = false, 500);
+            const resetQuery = () => { queryParams.name = ''; queryParams.nature = ''; handleSearch(); };
+            const formatPhone = (phone) => phone ? phone.replace(/(\d{3})\d{4}(\d{4})/, '$1****$2') : '';
+
+            return {
+                natureOptions, level1Options, level2Options, areaOptions,
+                loading, dialogVisible, importDialogVisible, dialogTitle, formRef, selection, pagination, queryParams, form, tableData, rules, importResult,
+                isView,
+                handleSearch, resetQuery, handleAdd, handleEdit, handleView, handleDelete, handleBatchDelete, handleExport, submitForm, submitAndContinue, handleSelectionChange, formatPhone, handleLevel1Change,
+                openImportDialog, downloadTemplate, handleFileChange, downloadErrorReport, autoGeoCode,
+                Search, Refresh, Plus, Upload, Download, Delete, Folder, Document, UploadFilled, CircleCheckFilled
+            };
+        }
+    });
+
+    app.use(ElementPlus);
+    for (const [key, component] of Object.entries(ElementPlusIconsVue)) { app.component(key, component); }
+    app.mount('#app');
+</script>
+</body>
+</html>

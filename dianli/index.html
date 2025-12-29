@@ -1,0 +1,789 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>计量点管理模块 - 分页样式升级</title>
+    <!-- 引入样式 -->
+    <link rel="stylesheet" href="https://unpkg.com/element-ui/lib/theme-chalk/index.css">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #f0f2f5;
+            font-family: "Helvetica Neue", Helvetica, "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "微软雅黑", Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        #app {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* 顶部全局搜索栏 */
+        .top-search-card {
+            background: #fff;
+            padding: 18px 20px 0 20px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.05);
+            z-index: 10;
+            flex-shrink: 0; 
+        }
+
+        /* 主内容区域 */
+        .content-container {
+            flex: 1;
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+            overflow: hidden; 
+        }
+        
+        /* 左侧边栏样式 */
+        .sidebar-card {
+            width: 280px;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+        }
+        .sidebar-header {
+            padding: 15px 20px;
+            border-bottom: 1px solid #ebeef5;
+            background-color: #fafafa;
+        }
+        .sidebar-title {
+            font-weight: bold;
+            font-size: 15px;
+            color: #303133;
+            display: flex;
+            align-items: center;
+        }
+        .sidebar-title i { color: #409EFF; margin-right: 8px; }
+        .tree-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+        
+        /* 树节点自定义样式 */
+        .custom-tree-node {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 14px;
+            padding-right: 8px;
+            overflow: hidden;
+            user-select: none; /* 防止拖拽时选中文字 */
+        }
+        .node-label {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .node-icon { margin-right: 6px; font-size: 14px; }
+        .icon-folder { color: #909399; }
+        .icon-file { color: #409EFF; }
+        .el-tree-node.is-drop-inner > .el-tree-node__content .node-label {
+            background-color: #f0f9eb;
+        }
+        .action-btn { display: none; color: #909399; }
+        .el-tree-node__content:hover .action-btn { display: block; }
+        
+        /* 右侧主内容样式 */
+        .main-card {
+            flex: 1;
+            background: #fff;
+            border-radius: 4px;
+            box-shadow: 0 2px 12px 0 rgba(0, 0, 0, 0.1);
+            padding: 0 20px 20px 20px; 
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .action-bar {
+            padding: 15px 0;
+            border-bottom: 1px solid #ebeef5;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .table-container {
+            flex: 1;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* --- 分页样式定制 (重点修改区域) --- */
+        .pagination-container {
+            margin-top: 15px;
+            text-align: right;
+        }
+        /* 覆盖 Element UI 默认样式以匹配截图 */
+        .custom-pagination.el-pagination {
+            font-weight: normal;
+            color: #333;
+        }
+        /* 总条数 */
+        .custom-pagination .el-pagination__total {
+            margin-right: 15px;
+        }
+        /* 页码按钮 */
+        .custom-pagination .el-pager li {
+            background-color: #fff;
+            border: 1px solid #DCDFE6;
+            border-radius: 4px;
+            margin: 0 4px;
+            min-width: 32px;
+            height: 32px;
+            line-height: 30px; /* 减去边框 */
+            font-weight: normal;
+        }
+        /* 选中页码 */
+        .custom-pagination .el-pager li.active {
+            color: #409EFF;
+            border-color: #409EFF;
+            background-color: #ecf5ff; /* 浅蓝背景 */
+            cursor: default;
+        }
+        /* 悬浮页码 */
+        .custom-pagination .el-pager li:hover {
+            color: #409EFF;
+        }
+        /* 上一页/下一页按钮 */
+        .custom-pagination .btn-prev, 
+        .custom-pagination .btn-next {
+            background-color: transparent;
+            border: none;
+            color: #C0C4CC;
+            min-width: 32px;
+            height: 32px;
+            line-height: 32px;
+        }
+        /* 每页条数选择器 */
+        .custom-pagination .el-sizes {
+            margin: 0 10px;
+        }
+        .custom-pagination .el-sizes .el-input .el-input__inner {
+            border-radius: 4px;
+            height: 32px;
+            line-height: 32px;
+        }
+        /* 跳转输入框 */
+        .custom-pagination .el-pagination__jump {
+            margin-left: 10px;
+        }
+        .custom-pagination .el-pagination__jump .el-input__inner {
+            border-radius: 4px;
+            height: 32px;
+            line-height: 32px;
+        }
+
+        /* 状态样式 */
+        .status-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; }
+        .status-draft { background-color: #909399; }
+        .status-pending { background-color: #E6A23C; }
+        .status-active { background-color: #67C23A; }
+
+        .view-form .el-input__inner, .view-form .el-textarea__inner { background-color: #f5f7fa; color: #606266; cursor: default; }
+        
+        /* 导入相关样式 */
+        .step-title { font-weight: bold; font-size: 14px; color: #303133; margin-bottom: 10px; }
+        .step-desc { font-size: 12px; color: #909399; margin-bottom: 20px; }
+        .upload-area { margin-bottom: 20px; }
+        .upload-demo .el-upload { width: 100%; }
+        .upload-demo .el-upload-dragger { width: 100%; border: 1px dashed #409EFF; border-radius: 6px; background-color: #fff; }
+        .import-result-container { background-color: #F8F9FA; padding: 15px; border-radius: 4px; margin-top: 20px; }
+        .result-summary { font-size: 14px; color: #303133; margin-bottom: 15px; font-weight: bold; }
+        .text-success { color: #67C23A; font-size: 16px; margin: 0 4px; }
+        .text-fail { color: #F56C6C; font-size: 16px; margin: 0 4px; }
+        .fail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; font-size: 13px; color: #F56C6C; }
+        .error-text { color: #F56C6C; }
+    </style>
+</head>
+<body>
+
+<div id="app">
+    <!-- 顶部全局检索 -->
+    <div class="top-search-card">
+        <el-form :inline="true" :model="searchForm" size="small" class="demo-form-inline">
+            <el-form-item label="所属客户">
+                <el-cascader
+                    v-model="searchForm.customer"
+                    :options="customerTreeOptions"
+                    :props="{ checkStrictly: true, value: 'fullPath', label: 'label', emitPath: false }"
+                    placeholder="选择客户(支持任意层级)"
+                    clearable
+                    filterable
+                    style="width: 220px">
+                </el-cascader>
+            </el-form-item>
+            <el-form-item label="计量点名称">
+                <el-input v-model="searchForm.name" placeholder="模糊检索" clearable></el-input>
+            </el-form-item>
+            <el-form-item label="编号">
+                <el-input v-model="searchForm.code" placeholder="精准检索" style="width: 150px" clearable></el-input>
+            </el-form-item>
+            <el-form-item label="用电类别">
+                <el-select v-model="searchForm.category" placeholder="全部" clearable style="width: 120px">
+                    <el-option v-for="type in dictionary.categories" :key="type" :label="type" :value="type"></el-option>
+                </el-select>
+            </el-form-item>
+            <el-form-item>
+                <el-button type="primary" icon="el-icon-search" @click="handleGlobalSearch" :loading="loading">搜索</el-button>
+                <el-button icon="el-icon-refresh" @click="resetGlobalSearch">重置</el-button>
+            </el-form-item>
+        </el-form>
+    </div>
+
+    <div class="content-container">
+        <!-- 左侧组织架构树 -->
+        <div class="sidebar-card">
+            <div class="sidebar-header">
+                <span class="sidebar-title"><i class="el-icon-s-operation"></i> 数据拓扑</span>
+            </div>
+            <div class="tree-container">
+                <el-tree
+                    ref="orgTree"
+                    :data="treeData"
+                    :props="defaultProps"
+                    node-key="id"
+                    default-expand-all
+                    :expand-on-click-node="false"
+                    highlight-current
+                    draggable
+                    :allow-drag="allowDrag"
+                    :allow-drop="allowDrop"
+                    @node-drop="handleNodeDrop"
+                    @node-click="handleNodeClick"
+                    empty-text="暂无匹配组织数据">
+                    <span class="custom-tree-node" slot-scope="{ node, data }">
+                        <span class="node-label">
+                            <i :class="['node-icon', data.isMeter ? 'el-icon-document icon-file' : 'el-icon-folder icon-folder']"></i>
+                            <span :style="data.isMeter && data.status === '草稿' ? 'color: #909399' : ''">{{ node.label }}</span>
+                        </span>
+                        <span class="action-btn">
+                             <el-dropdown trigger="click" @command="(cmd) => handleTreeCommand(cmd, data)">
+                                <span class="el-dropdown-link">
+                                    <i class="el-icon-more transform-90"></i>
+                                </span>
+                                <el-dropdown-menu slot="dropdown">
+                                    <el-dropdown-item v-if="!data.isMeter && data.isLeafCustomer" command="add" icon="el-icon-plus">新增计量点</el-dropdown-item>
+                                    <el-dropdown-item v-if="data.isMeter" command="edit" icon="el-icon-edit">编辑</el-dropdown-item>
+                                    <el-dropdown-item v-if="data.isMeter" command="delete" icon="el-icon-delete" style="color: #F56C6C">删除</el-dropdown-item>
+                                </el-dropdown-menu>
+                            </el-dropdown>
+                        </span>
+                    </span>
+                </el-tree>
+            </div>
+        </div>
+
+        <!-- 右侧主列表 -->
+        <div class="main-card">
+            <div class="table-container">
+                <!-- 操作栏 -->
+                <div class="action-bar">
+                    <div>
+                        <el-button type="primary" icon="el-icon-plus" size="small" @click="openAddDialog">新增计量点</el-button>
+                        <el-button type="warning" plain icon="el-icon-upload2" size="small" @click="openImportDialog">批量导入</el-button>
+                        <el-button type="danger" plain icon="el-icon-delete" size="small" @click="handleBatchDelete">删除</el-button>
+                    </div>
+                </div>
+
+                <!-- 表格 -->
+                <el-table
+                    :data="tableData"
+                    style="width: 100%; flex: 1;"
+                    height="100%"
+                    border
+                    v-loading="loading"
+                    header-cell-class-name="table-header"
+                    size="medium"
+                    @selection-change="handleSelectionChange">
+                    
+                    <el-table-column type="selection" width="50" align="center"></el-table-column>
+                    <el-table-column type="index" label="序号" width="50" align="center"></el-table-column>
+                    <el-table-column prop="name" label="计量点名称" min-width="140" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="code" label="计量点编号" width="150"></el-table-column>
+                    <el-table-column prop="address" label="用电地址" min-width="180" show-overflow-tooltip resizable></el-table-column>
+                    <el-table-column label="所属客户" min-width="160">
+                        <template slot-scope="scope">
+                            <el-tooltip class="item" effect="dark" :content="scope.row.customerPath" placement="top">
+                                <span>{{ getCustomerLeaf(scope.row.customerPath) }}</span>
+                            </el-tooltip>
+                        </template>
+                    </el-table-column>
+                    <el-table-column prop="voltage" label="电压等级" width="140" show-overflow-tooltip></el-table-column>
+                    
+                    <el-table-column label="状态" width="100" align="center">
+                        <template slot-scope="scope">
+                            <span class="status-dot" 
+                                :class="{
+                                    'status-draft': scope.row.status === '草稿',
+                                    'status-pending': scope.row.status === '待生效',
+                                    'status-active': scope.row.status === '已生效'
+                                }">
+                            </span>
+                            {{ scope.row.status }}
+                        </template>
+                    </el-table-column>
+
+                    <el-table-column label="操作" width="150" fixed="right" align="center">
+                        <template slot-scope="scope">
+                            <el-button type="text" size="small" @click="handleView(scope.row)">查看</el-button>
+                            <el-button type="text" size="small" @click="handleEdit(scope.row)">编辑</el-button>
+                            <el-button type="text" size="small" style="color: #F56C6C" @click="handleDelete(scope.row)">删除</el-button>
+                        </template>
+                    </el-table-column>
+                </el-table>
+
+                <!-- 分页 -->
+                <div class="pagination-container">
+                    <el-pagination
+                        class="custom-pagination"
+                        @size-change="handleSizeChange"
+                        @current-change="handleCurrentChange"
+                        :current-page="pagination.currentPage"
+                        :page-sizes="[10, 20, 50]"
+                        :page-size="pagination.pageSize"
+                        layout="total, prev, pager, next, sizes, jumper"
+                        :total="total">
+                    </el-pagination>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗：新增/编辑 -->
+    <el-dialog :title="dialogTitle" :visible.sync="dialogVisible" width="650px" :close-on-click-modal="false" append-to-body>
+        <el-form :model="form" :rules="rules" ref="dataForm" label-width="140px" size="small">
+            <el-form-item label="计量点名称" prop="name"><el-input v-model="form.name"></el-input></el-form-item>
+            <el-form-item label="计量点编号" prop="code"><el-input v-model="form.code" placeholder="仅支持数字"></el-input></el-form-item>
+            <el-form-item label="所属客户" prop="customerPath">
+                <el-select v-model="form.customerPath" style="width: 100%" filterable placeholder="请选择最末级客户">
+                    <el-option v-for="item in dictionary.customers" :key="item.value" :label="item.label" :value="item.label"></el-option>
+                </el-select>
+            </el-form-item>
+            <el-row><el-col :span="12"><el-form-item label="所属供电所" prop="station"><el-input v-model="form.station"></el-input></el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="所属区县局" prop="bureau"><el-input v-model="form.bureau"></el-input></el-form-item></el-col></el-row>
+            <el-form-item label="用电地址" prop="address"><el-input type="textarea" v-model="form.address"></el-input></el-form-item>
+            <el-row><el-col :span="12"><el-form-item label="用电类别" prop="category"><el-select v-model="form.category"><el-option v-for="t in dictionary.categories" :key="t" :label="t" :value="t"></el-option></el-select></el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="容量(KVA)" prop="capacity"><el-input v-model.number="form.capacity"></el-input></el-form-item></el-col></el-row>
+            <el-form-item label="电压等级" prop="voltage"><el-select v-model="form.voltage" style="width: 100%"><el-option v-for="v in dictionary.voltages" :key="v" :label="v" :value="v"></el-option></el-select></el-form-item>
+        </el-form>
+        <div slot="footer" class="dialog-footer">
+            <el-button @click="saveAsDraft" size="small">保 存</el-button>
+            <el-button @click="dialogVisible = false" size="small">取 消</el-button>
+            <el-button type="primary" @click="submitDataForm" size="small" :loading="submitting">提 交</el-button>
+        </div>
+    </el-dialog>
+
+    <!-- 弹窗：批量导入 -->
+    <el-dialog title="批量导入计量点信息" :visible.sync="importVisible" width="650px" append-to-body>
+        <div class="step-title">步骤1：<el-link type="primary" :underline="false" style="font-size: 14px; font-weight: bold;">下载标准化Excel模板</el-link></div>
+        <div class="step-desc">请下载模板并按照规则填写，红色标题为必填项。</div>
+        <div class="step-title">步骤2：上传填好的文件</div>
+        <div class="upload-area">
+            <el-upload class="upload-demo" drag action="" :before-upload="beforeImport" multiple>
+                <i class="el-icon-upload"></i>
+                <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
+                <div class="el-upload__tip" slot="tip" style="text-align: center;">只能上传 xlsx/xls 文件，且不超过 5MB</div>
+            </el-upload>
+        </div>
+        <div v-if="importReport" class="import-result-container">
+            <div class="result-summary">导入结果：共解析 {{ importReport.total }} 条，成功 <span class="text-success">{{ importReport.success }}</span> 条 ，失败 <span class="text-fail">{{ importReport.fail }}</span> 条</div>
+            <div v-if="importReport.fail > 0">
+                <div class="fail-header"><span>以下为导入失败的数据：</span><el-button type="danger" size="mini" icon="el-icon-download" @click="downloadErrorList">下载失败数据清单</el-button></div>
+                <el-table :data="importReport.errors" height="200" border size="mini" style="width: 100%">
+                    <el-table-column prop="row" label="行号" width="60" align="center"></el-table-column>
+                    <el-table-column prop="name" label="名称" min-width="120" show-overflow-tooltip></el-table-column>
+                    <el-table-column prop="code" label="编号" width="130"></el-table-column>
+                    <el-table-column prop="reason" label="失败原因" min-width="150"><template slot-scope="scope"><span class="error-text">{{ scope.row.reason }}</span></template></el-table-column>
+                </el-table>
+            </div>
+        </div>
+        <div slot="footer" class="dialog-footer">
+            <el-button @click="importVisible = false" size="small">关 闭</el-button>
+            <el-button type="primary" @click="confirmImport" size="small" :disabled="!importReport || importReport.success === 0">确认提交 ({{ importReport ? importReport.success : 0 }})</el-button>
+        </div>
+    </el-dialog>
+
+    <!-- 详情查看弹窗 -->
+    <el-dialog title="查看详情" :visible.sync="viewDialogVisible" width="650px" append-to-body>
+        <el-form :model="viewForm" label-width="140px" size="small" class="view-form">
+            <el-form-item label="计量点名称"><el-input v-model="viewForm.name" disabled></el-input></el-form-item>
+            <el-form-item label="计量点编号"><el-input v-model="viewForm.code" disabled></el-input></el-form-item>
+            <el-form-item label="所属客户"><el-input v-model="viewForm.customerPath" disabled></el-input></el-form-item>
+            <el-row><el-col :span="12"><el-form-item label="所属供电所"><el-input v-model="viewForm.station" disabled></el-input></el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="所属区县局"><el-input v-model="viewForm.bureau" disabled></el-input></el-form-item></el-col></el-row>
+            <el-form-item label="用电地址"><el-input type="textarea" v-model="viewForm.address" disabled></el-input></el-form-item>
+            <el-row><el-col :span="12"><el-form-item label="用电类别"><el-input v-model="viewForm.category" disabled></el-input></el-form-item></el-col>
+            <el-col :span="12"><el-form-item label="容量(KVA)"><el-input v-model="viewForm.capacity" disabled></el-input></el-form-item></el-col></el-row>
+            <el-form-item label="电压等级"><el-input v-model="viewForm.voltage" disabled></el-input></el-form-item>
+            <el-form-item label="当前状态">
+                <el-tag :type="viewForm.status === '已生效' ? 'success' : (viewForm.status === '待生效' ? 'warning' : 'info')">{{ viewForm.status }}</el-tag>
+            </el-form-item>
+        </el-form>
+        <div slot="footer"><el-button type="primary" @click="viewDialogVisible = false" size="small">关 闭</el-button></div>
+    </el-dialog>
+</div>
+
+<script src="https://unpkg.com/vue@2.6.14/dist/vue.js"></script>
+<script src="https://unpkg.com/element-ui/lib/index.js"></script>
+
+<script>
+    new Vue({
+        el: '#app',
+        data() {
+            const validateCode = (rule, value, callback) => {
+                if (!value) return callback(new Error('编号不能为空'));
+                if (!/^\d+$/.test(value)) return callback(new Error('仅支持数字'));
+                const exists = this.allData.some(item => 
+                    item.code === value && 
+                    item.id !== this.form.id && 
+                    !item.isDeleted 
+                );
+                if (exists) return callback(new Error('编号已存在'));
+                callback();
+            };
+
+            return {
+                loading: false,
+                submitting: false,
+                searchForm: { name: '', code: '', customer: '', org: '', category: '' },
+                pagination: { currentPage: 1, pageSize: 10 },
+                dictionary: {
+                    categories: ['商业', '工商业', '居民', '非居民', '农业', '大工业'],
+                    voltages: ['单一制 - 不满 1 千伏', '单一制 - 1~10 千伏', '单一制 - 35 千伏', '两部制 - 1~10 千伏', '两部制 - 35 千伏', '两部制 - 110 千伏', '两部制 - 220 千伏'],
+                    customers: [
+                        { value: '1', label: '新发展集团/红桂集团' },
+                        { value: '2', label: '华南泰产业园/A区物业' },
+                        { value: '3', label: '广西交投/南宁分公司' },
+                        { value: '4', label: '新发展集团/蓝天分公司' }
+                    ]
+                },
+                customerTreeOptions: [],
+                allData: [],      
+                filteredData: [], 
+                tableData: [],    
+                total: 0,
+                multipleSelection: [],
+                treeData: [],
+                defaultProps: { children: 'children', label: 'label' },
+                treeFilter: { customer: null, meterId: null },
+
+                dialogVisible: false, viewDialogVisible: false, dialogTitle: '新增', isEditMode: false,
+                form: {}, viewForm: {},
+                rules: {
+                    name: [{ required: true, message: '请输入计量点名称', trigger: 'blur' }],
+                    code: [{ required: true, validator: validateCode, trigger: 'blur' }],
+                    customerPath: [{ required: true, message: '请选择所属客户', trigger: 'change' }],
+                    station: [{ required: true, message: '请输入所属供电所', trigger: 'blur' }],
+                    bureau: [{ required: true, message: '请输入所属区县局', trigger: 'blur' }],
+                    address: [{ required: true, message: '请输入用电地址', trigger: 'blur' }],
+                    category: [{ required: true, message: '请选择用电类别', trigger: 'change' }],
+                    capacity: [{ required: true, message: '请输入变压器容量', trigger: 'blur' }, { type: 'number', message: '容量必须为数字', trigger: 'blur' }],
+                    voltage: [{ required: true, message: '请选择电压等级', trigger: 'change' }]
+                },
+                importVisible: false, importReport: null
+            };
+        },
+        created() {
+            this.initMockData();
+            this.initCustomerOptions(); 
+            this.handleGlobalSearch();
+        },
+        methods: {
+            initMockData() {
+                this.allData = [
+                    { id: 1, name: '苍梧收费站计量点', code: '1111111121953978', address: '南宁市良庆区', station: '南宁市广电局', bureau: '良庆区供电局', category: '工商业', customerPath: '新发展集团/红桂集团', voltage: '两部制 - 220 千伏', capacity: 5000, status: '已生效', isDeleted: false },
+                    { id: 2, name: '南宁东站备用计量点', code: '1111111121950001', address: '南宁市青秀区', station: '凤岭供电所', bureau: '青秀区供电局', category: '大工业', customerPath: '广西交投/南宁分公司', voltage: '两部制 - 110 千伏', capacity: 12000, status: '草稿', isDeleted: false },
+                    { id: 3, name: '新建工业园测试点', code: '99999999123', address: '经开区B栋', station: '经开所', bureau: '经开局', category: '大工业', customerPath: '华南泰产业园/A区物业', voltage: '单一制 - 1~10 千伏', capacity: 2000, status: '待生效', isDeleted: false }
+                ];
+                for(let i=4; i<=25; i++) {
+                    let cust = i % 3 === 0 ? '新发展集团/蓝天分公司' : (i % 2 === 0 ? '华南泰产业园/A区物业' : '新发展集团/红桂集团');
+                    let st = i % 5 === 0 ? '草稿' : (i % 3 === 0 ? '待生效' : '已生效'); 
+                    this.allData.push({
+                        id: i, name: `测试计量点${i}`, code: `11111111219500${i<10?'0'+i:i}`,
+                        address: `南宁市某工业园${i}号楼`, station: '经开区供电所', bureau: '经开区供电局',
+                        category: '工商业', customerPath: cust,
+                        voltage: '单一制 - 1~10 千伏', capacity: 100 * i, status: st, isDeleted: false
+                    });
+                }
+            },
+
+            initCustomerOptions() {
+                let options = [];
+                const paths = this.dictionary.customers.map(c => c.label);
+                paths.forEach(path => {
+                    const parts = path.split('/');
+                    let currentLevel = options;
+                    parts.forEach((part, index) => {
+                        let existingNode = currentLevel.find(n => n.label === part);
+                        if (!existingNode) {
+                            const fullPath = parts.slice(0, index + 1).join('/');
+                            let newNode = { label: part, value: fullPath, children: [] };
+                            currentLevel.push(newNode);
+                            existingNode = newNode;
+                        }
+                        if (index === parts.length - 1) delete existingNode.children;
+                        else currentLevel = existingNode.children;
+                    });
+                });
+                this.customerTreeOptions = options;
+            },
+
+            handleGlobalSearch() {
+                this.loading = true;
+                setTimeout(() => {
+                    const { name, code, customer, org, category } = this.searchForm;
+                    this.filteredData = this.allData.filter(item => {
+                        if (item.isDeleted) return false; 
+                        let match = true;
+                        if (name) match = match && item.name.includes(name);
+                        if (code) match = match && item.code.includes(code);
+                        if (customer) match = match && item.customerPath.startsWith(customer);
+                        if (org) match = match && (item.station.includes(org) || item.bureau.includes(org));
+                        if (category) match = match && item.category === category;
+                        return match;
+                    });
+                    this.total = this.filteredData.length;
+                    this.updateTableData();
+                    this.buildTreeData(this.filteredData);
+                    this.loading = false;
+                }, 300);
+            },
+
+            updateTableData() {
+                let list = this.filteredData;
+                if (this.treeFilter.meterId) list = list.filter(item => item.id === this.treeFilter.meterId);
+                else if (this.treeFilter.customer) list = list.filter(item => item.customerPath.startsWith(this.treeFilter.customer));
+                const start = (this.pagination.currentPage - 1) * this.pagination.pageSize;
+                const end = start + this.pagination.pageSize;
+                this.tableData = list.slice(start, end);
+            },
+
+            resetGlobalSearch() {
+                this.searchForm = { name: '', code: '', customer: '', org: '', category: '' };
+                this.treeFilter = { customer: null, meterId: null };
+                if(this.$refs.orgTree) this.$refs.orgTree.setCurrentKey(null);
+                this.handleGlobalSearch();
+            },
+
+            buildTreeData(dataSource) {
+                if (dataSource.length === 0) {
+                    this.treeData = [];
+                    return;
+                }
+                let tree = [];
+                let rootNodes = [];
+                const findNode = (nodes, label) => nodes.find(n => n.label === label);
+                dataSource.forEach(meter => {
+                    const parts = meter.customerPath.split('/');
+                    let currentLevel = rootNodes;
+                    parts.forEach((part, index) => {
+                        let node = findNode(currentLevel, part);
+                        if (!node) {
+                            node = {
+                                id: 'cust-' + part + '-' + Math.random().toString(36).substr(2, 9),
+                                label: part,
+                                children: [],
+                                isMeter: false,
+                                fullPath: parts.slice(0, index + 1).join('/'),
+                                isLeafCustomer: index === parts.length - 1
+                            };
+                            currentLevel.push(node);
+                        }
+                        currentLevel = node.children;
+                    });
+                    currentLevel.push({ ...meter, label: meter.name, isMeter: true, children: null });
+                });
+                this.treeData = rootNodes;
+            },
+
+            allowDrag(node) { return node.data.isMeter; },
+            allowDrop(draggingNode, dropNode, type) {
+                if (!dropNode.data.isMeter) return false;
+                if (type === 'inner') return false;
+                return draggingNode.parent.id === dropNode.parent.id;
+            },
+            handleNodeDrop(draggingNode, dropNode, dropType, ev) {
+                console.log('拖拽完成');
+                this.$message.success('计量点排序已更新');
+            },
+
+            handleNodeClick(data) {
+                if (data.isMeter) {
+                    this.treeFilter.meterId = data.id;
+                    this.treeFilter.customer = null;
+                } else {
+                    this.treeFilter.meterId = null;
+                    this.treeFilter.customer = data.fullPath;
+                }
+                this.pagination.currentPage = 1;
+                this.updateTableData();
+            },
+
+            handleTreeCommand(command, data) {
+                if (command === 'add') {
+                    this.openAddDialog();
+                    this.form.customerPath = data.fullPath;
+                } else if (command === 'edit') this.handleEdit(data);
+                else if (command === 'delete') this.handleDelete(data);
+            },
+
+            getCustomerLeaf(path) { return path ? path.split('/').pop() : ''; },
+            handleSizeChange(val) { this.pagination.pageSize = val; this.updateTableData(); },
+            handleCurrentChange(val) { this.pagination.currentPage = val; this.updateTableData(); },
+            handleSelectionChange(val) { this.multipleSelection = val; },
+
+            handleBatchDelete() {
+                if (!this.multipleSelection.length) return this.$message.warning('请选择数据');
+                
+                const physicalDeleteItems = this.multipleSelection.filter(i => i.status === '草稿' || i.status === '待生效');
+                const logicalDeleteItems = this.multipleSelection.filter(i => i.status === '已生效');
+                
+                let confirmMsg = '';
+                if (logicalDeleteItems.length > 0 && physicalDeleteItems.length > 0) {
+                    confirmMsg = `选中数据包含 <span style="color:#67C23A;font-weight:bold">${logicalDeleteItems.length}</span> 条已生效数据（将移除显示）和 <span style="color:#E6A23C;font-weight:bold">${physicalDeleteItems.length}</span> 条草稿/待生效数据（将永久删除）。是否确认？`;
+                } else if (logicalDeleteItems.length > 0) {
+                    confirmMsg = `选中的 <span style="color:#67C23A;font-weight:bold">${logicalDeleteItems.length}</span> 条已生效数据将被逻辑删除（移除显示），后台保留数据。是否确认？`;
+                } else {
+                    confirmMsg = `选中的 <span style="color:#F56C6C;font-weight:bold">${physicalDeleteItems.length}</span> 条草稿/待生效数据将被永久物理删除。是否确认？`;
+                }
+
+                this.$confirm(confirmMsg, '删除提示', { dangerouslyUseHTMLString: true, type: 'warning' })
+                    .then(() => {
+                        this.executeBatchDelete(physicalDeleteItems, logicalDeleteItems);
+                    }).catch(()=>{});
+            },
+
+            executeBatchDelete(physicalItems, logicalItems) {
+                if (physicalItems.length > 0) {
+                    const idsToRemove = physicalItems.map(i => i.id);
+                    this.allData = this.allData.filter(i => !idsToRemove.includes(i.id));
+                }
+                if (logicalItems.length > 0) {
+                    logicalItems.forEach(item => {
+                        const target = this.allData.find(d => d.id === item.id);
+                        if (target) target.isDeleted = true;
+                    });
+                }
+                this.$message.success('删除操作完成');
+                this.handleGlobalSearch();
+            },
+
+            handleDelete(row) {
+                if (row.status === '已生效') {
+                    this.$confirm('该计量点已生效，删除后将仅在列表中隐藏（非物理删除），是否继续？', '删除提示', { 
+                        confirmButtonText: '移除显示', 
+                        cancelButtonText: '取消', 
+                        type: 'warning' 
+                    }).then(() => {
+                        const index = this.allData.findIndex(d => d.id === row.id);
+                        if (index !== -1) {
+                            this.allData[index].isDeleted = true;
+                            this.$message.success('已移除显示');
+                            this.handleGlobalSearch();
+                        }
+                    }).catch(()=>{});
+                } else {
+                    const statusText = row.status === '草稿' ? '草稿' : '待生效数据';
+                    this.$confirm(`此操作将永久删除该${statusText}，不可恢复，是否继续？`, '删除提示', { 
+                        confirmButtonText: '永久删除', 
+                        cancelButtonText: '取消', 
+                        type: 'error' 
+                    }).then(() => {
+                        const index = this.allData.findIndex(d => d.id === row.id);
+                        if (index !== -1) {
+                            this.allData.splice(index, 1);
+                            this.$message.success('删除成功');
+                            this.handleGlobalSearch();
+                        }
+                    }).catch(()=>{});
+                }
+            },
+
+            openAddDialog() {
+                this.isEditMode = false;
+                this.dialogTitle = '新增';
+                this.form = { id: null, name: '', code: '', address: '', station: '', bureau: '', category: '', customerPath: '', voltage: '', capacity: undefined, status: '待生效', isDeleted: false };
+                this.dialogVisible = true;
+                this.$nextTick(() => this.$refs.dataForm.clearValidate());
+            },
+            handleEdit(row) {
+                this.isEditMode = true;
+                this.dialogTitle = '编辑';
+                this.form = JSON.parse(JSON.stringify(row));
+                this.dialogVisible = true;
+            },
+            saveAsDraft() { this.form.status = '草稿'; this.saveLogic(false); },
+            
+            submitDataForm() { 
+                if (!this.form.id && this.form.status !== '草稿') {
+                    this.form.status = '待生效'; 
+                }
+                if (this.form.status === '草稿') {
+                    this.form.status = '待生效';
+                }
+                this.$refs.dataForm.validate(v => { if(v) this.saveLogic(true); }); 
+            },
+
+            saveLogic(isValid) {
+                this.submitting = true;
+                setTimeout(() => {
+                    if (this.isEditMode) {
+                        const idx = this.allData.findIndex(d => d.id === this.form.id);
+                        if (idx !== -1) this.allData.splice(idx, 1, this.form);
+                    } else {
+                        this.form.id = Date.now();
+                        this.allData.unshift(this.form);
+                    }
+                    this.submitting = false;
+                    this.dialogVisible = false;
+                    this.$message.success(isValid ? '提交成功，状态已变更为待生效' : '草稿保存成功');
+                    this.handleGlobalSearch();
+                }, 500);
+            },
+            handleView(row) { this.viewForm = JSON.parse(JSON.stringify(row)); this.viewDialogVisible = true; },
+            
+            openImportDialog() { 
+                this.importVisible = true; 
+                this.importReport = null; 
+            },
+            beforeImport() {
+                const l = this.$loading({ text: '正在解析文件...', background: 'rgba(0,0,0,0.7)' });
+                setTimeout(() => { 
+                    l.close(); 
+                    this.importReport = { 
+                        total: 88,
+                        success: 10, 
+                        fail: 78, 
+                        errors: [
+                            { row: 2, name: '综合能源管理平台计量点', code: '/', reason: '管理员空; 联系方式空; 代码格式错误' },
+                            { row: 3, name: '', code: '/', reason: '一级客户空; 管理员空; 联系方式空; 代码格式错误' }
+                        ] 
+                    }; 
+                }, 1000);
+                return false;
+            },
+            downloadErrorList() { this.$message.info('正在下载失败数据清单...'); },
+            confirmImport() { 
+                this.$message.success(`成功导入 ${this.importReport.success} 条有效数据`); 
+                this.importVisible = false; 
+                this.handleGlobalSearch(); 
+            }
+        }
+    });
+</script>
+</body>
+</html>

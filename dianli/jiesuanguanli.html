@@ -1,0 +1,603 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>电力交易月度结算依据管理</title>
+    <!-- 引入图标库 -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+        /* --- 全局样式变量 --- */
+        :root {
+            --primary-color: #1890ff;
+            --text-color: #333;
+            --text-secondary: #606266;
+            --border-color: #dcdfe6;
+            --bg-color: #f0f2f5;
+            --header-bg: #fafafa;
+            --hover-bg: #f5f7fa;
+            --danger-color: #ff4d4f;
+            --footer-bg: #fff;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            padding: 20px;
+            font-size: 14px;
+        }
+
+        /* --- 按钮样式 --- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 15px; 
+            border-radius: 4px;
+            cursor: pointer;
+            border: 1px solid transparent;
+            font-size: 14px;
+            transition: all 0.3s;
+            outline: none;
+            height: 32px; 
+            line-height: 32px;
+            white-space: nowrap;
+        }
+        
+        .btn-primary { background-color: #409eff; color: white; border-color: #409eff; }
+        .btn-primary:hover { background-color: #66b1ff; border-color: #66b1ff; }
+        
+        .btn-outline-primary { background-color: #fff; border: 1px solid var(--primary-color); color: var(--primary-color); }
+        .btn-outline-primary:hover { background-color: #e6f7ff; }
+        
+        .btn-default { background: #fff; border: 1px solid #dcdfe6; color: #606266; }
+        .btn-default:hover { color: var(--primary-color); border-color: #c6e2ff; background-color: #ecf5ff; }
+
+        /* --- 搜索面板 --- */
+        .search-panel {
+            background: white;
+            padding: 18px 20px;
+            border-radius: 4px;
+            margin-bottom: 16px;
+            border: 1px solid #ebeef5;
+            display: flex; 
+            align-items: center; 
+            flex-wrap: wrap; 
+            gap: 20px; 
+            box-shadow: 0 1px 4px rgba(0,21,41,0.08);
+        }
+
+        .form-item { display: flex; align-items: center; }
+        .form-label { margin-right: 12px; color: #606266; white-space: nowrap; font-weight: 400; font-size: 14px; }
+        .search-btns { display: flex; gap: 10px; }
+
+        /* === 日期选择器 === */
+        .custom-date-picker-container { position: relative; width: 260px; }
+        .custom-date-input { display: flex; align-items: center; width: 100%; height: 32px; border: 1px solid #dcdfe6; border-radius: 4px; padding: 0 10px; cursor: pointer; background: #fff; transition: border-color 0.3s; }
+        .custom-date-input:hover, .custom-date-input.active { border-color: var(--primary-color); }
+        .date-icon { color: #c0c4cc; margin-right: 8px; }
+        .date-text { flex: 1; color: #606266; font-size: 13px; display: flex; align-items: center; }
+        .date-text.placeholder { color: #c0c4cc; }
+        .clear-icon { display: none; color: #c0c4cc; cursor: pointer; }
+        .custom-date-input:hover .clear-icon { display: block; }
+        .custom-date-input:hover .date-icon { display: none; }
+        
+        .picker-dropdown { position: absolute; top: 40px; left: 0; background: #fff; border: 1px solid #e4e7ed; box-shadow: 0 2px 12px 0 rgba(0,0,0,0.1); border-radius: 4px; z-index: 2000; display: none; width: 560px; padding: 0; }
+        .picker-body { display: flex; }
+        .picker-panel { width: 50%; padding: 10px; }
+        .picker-panel:first-child { border-right: 1px solid #e4e7ed; }
+        .picker-header { display: flex; justify-content: center; align-items: center; margin-bottom: 10px; position: relative; height: 30px; }
+        .header-label { font-weight: 500; color: #303133; cursor: pointer; }
+        .picker-arrow { position: absolute; cursor: pointer; color: #909399; font-size: 12px; padding: 5px; }
+        .picker-arrow:hover { color: var(--primary-color); }
+        .prev-year { left: 10px; } .next-year { right: 10px; }
+        .month-table { width: 100%; display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 0; }
+        .month-cell { text-align: center; cursor: pointer; padding: 8px 0; font-size: 12px; border-radius: 2px; color: #606266; }
+        .month-cell:hover { color: var(--primary-color); }
+        .month-cell.selected { background-color: var(--primary-color); color: #fff; border-radius: 18px; }
+        .month-cell.in-range { background-color: #f2f6fc; color: #606266; }
+
+        /* --- 通用面板 --- */
+        .content-panel { background: white; padding: 20px; border-radius: 4px; border: 1px solid #ebeef5; min-height: 600px; display: flex; flex-direction: column; }
+        .toolbar { margin-bottom: 15px; display: flex; gap: 10px; }
+
+        /* --- 列表表格样式 (仅对主列表生效) --- */
+        .table-container { width: 100%; overflow-x: auto; flex: 1; position: relative; border: 1px solid #ebeef5; border-radius: 4px; }
+        table { width: 100%; border-collapse: separate; border-spacing: 0; min-width: 1650px; }
+        th { background-color: var(--header-bg); color: #909399; font-weight: bold; padding: 12px 10px; text-align: left; border-bottom: 1px solid #ebeef5; white-space: nowrap; font-size: 13px; position: sticky; top: 0; z-index: 5; }
+        td { padding: 12px 10px; border-bottom: 1px solid #ebeef5; color: #000; font-size: 13px; transition: background 0.3s; }
+        tfoot { font-weight: bold; background-color: var(--footer-bg); position: sticky; bottom: 0; z-index: 5; }
+        tfoot td { border-top: 2px solid #ebeef5; border-bottom: 0; background-color: #fff; color: #000; }
+        tr:hover td { background-color: var(--hover-bg); }
+
+        /* 主列表固定列 */
+        .list-table th:last-child, 
+        .list-table td:last-child { 
+            position: sticky; 
+            right: 0; 
+            z-index: 10; 
+            border-left: 1px solid #ebeef5; 
+            box-shadow: -2px 0 5px rgba(0,0,0,0.03); 
+            text-align: center; 
+        }
+        .list-table th:last-child { background-color: var(--header-bg); } 
+        .list-table tbody td:last-child { background-color: #fff; } 
+        .list-table tfoot td:last-child { background-color: #fff; }
+        .list-table tr:hover td:last-child { background-color: var(--hover-bg); }
+
+        .action-link { color: var(--primary-color); cursor: pointer; margin: 0 5px; text-decoration: none; }
+        .action-link:hover { text-decoration: underline; }
+        .action-link.delete { color: var(--danger-color); }
+
+        /* --- 分页 --- */
+        .pagination-bar { margin-top: 20px; display: flex; justify-content: flex-end; align-items: center; color: #606266; font-size: 13px; user-select: none; }
+        .pager-btn { min-width: 28px; height: 28px; line-height: 28px; text-align: center; border: 0; background: transparent; cursor: pointer; margin: 0 5px; color: #c0c4cc; }
+        .pager-btn:not(:disabled):hover { color: var(--primary-color); }
+        .pager-list { display: flex; list-style: none; margin: 0 5px; }
+        .pager-item { min-width: 28px; height: 28px; line-height: 26px; text-align: center; border: 1px solid var(--border-color); border-radius: 4px; margin: 0 3px; cursor: pointer; background: #fff; }
+        .pager-item.active { background-color: #ecf5ff; border-color: var(--primary-color); color: var(--primary-color); cursor: default; }
+        .page-size-select { width: 90px; height: 28px; border: 1px solid var(--border-color); border-radius: 4px; margin: 0 10px; padding: 0 5px; outline: none; color: #606266; cursor: pointer; }
+        .jump-input { width: 40px; height: 28px; border: 1px solid var(--border-color); border-radius: 4px; text-align: center; margin: 0 5px; outline: none; }
+
+        /* --- 弹窗 (仅用于导入/导出) --- */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.5); display: none; justify-content: center; align-items: center; z-index: 1000; }
+        .modal { background: white; border-radius: 4px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; flex-direction: column; }
+        .modal-header { padding: 15px 20px; border-bottom: 1px solid #ebeef5; display: flex; justify-content: space-between; align-items: center; font-size: 16px; font-weight: 500; color: #303133; }
+        .modal-body { padding: 20px; max-height: 85vh; overflow-y: auto; }
+        .modal-footer { padding: 15px 20px; text-align: right; border-top: 1px solid #ebeef5; background: #fff; }
+        
+        /* --- 详情页 (全页展示样式) --- */
+        .detail-page { background: white; border-radius: 4px; border: 1px solid #ebeef5; padding: 20px; min-height: 800px; }
+        .detail-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #ebeef5; padding-bottom: 15px; }
+        .detail-title { font-size: 18px; font-weight: bold; color: #303133; }
+        .file-info-bar { background-color: #f0f9eb; border: 1px solid #e1f3d8; padding: 10px 15px; border-radius: 4px; display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; font-size: 13px; }
+        .file-name { color: #67c23a; font-weight: 500; display: flex; align-items: center; gap: 6px; }
+        .file-actions { display: flex; gap: 15px; }
+        .file-btn { color: var(--primary-color); cursor: pointer; text-decoration: none; display: flex; align-items: center; gap: 4px; }
+        
+        /* 详情表格核心样式调整 */
+        .sheet-header { display: flex; justify-content: space-between; margin-bottom: 10px; font-weight: bold; font-size: 15px; color: #333; }
+        .sheet-table { width: 100%; border-collapse: collapse; border: 2px solid #333; font-size: 13px; color: #000; margin-bottom: 20px; table-layout: fixed; /* 固定布局以便百分比生效 */ }
+        .sheet-table th, .sheet-table td { border: 1px solid #333; padding: 4px 8px; text-align: center; height: 36px; vertical-align: middle; }
+        .sheet-table thead th { font-weight: bold; background-color: #fff; }
+        
+        .col-type { font-weight: bold; writing-mode: vertical-lr; letter-spacing: 5px; width: 60px; }
+        .sheet-input { width: 100%; border: none; text-align: right; outline: none; font-size: 13px; background: transparent; padding: 0 5px; font-family: inherit; color: #000; }
+        .read-only .sheet-input { color: #000; cursor: default; }
+        .row-subtotal td { font-weight: bold; }
+        .row-total td { font-weight: bold; border-top: 2px solid #333; font-size: 14px; }
+        
+        .detail-footer { text-align: center; margin-top: 30px; display: flex; justify-content: center; gap: 20px; }
+
+        .upload-area { border: 1px dashed #d9d9d9; border-radius: 6px; background-color: #fafafa; text-align: center; padding: 40px 0; cursor: pointer; transition: border-color 0.3s; }
+        .upload-area:hover { border-color: var(--primary-color); }
+        .export-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 15px; }
+        .checkbox-group-title { font-weight: bold; margin: 15px 0 10px; padding-bottom: 5px; border-bottom: 1px solid #f0f0f0; grid-column: span 2; }
+        .checkbox-item { display: flex; align-items: center; font-size: 13px; color: #606266; cursor: pointer; }
+
+        /* 视图控制 */
+        .view-container { display: block; }
+        .hidden { display: none !important; }
+
+    </style>
+</head>
+<body>
+
+    <!-- 视图1：列表页 -->
+    <div id="view-list" class="view-container">
+        <!-- 搜索栏 -->
+        <div class="search-panel">
+            <div class="form-item">
+                <span class="form-label">结算月份</span>
+                <div class="custom-date-picker-container" id="datePickerContainer">
+                    <div class="custom-date-input" id="datePickerTrigger">
+                        <i class="fa fa-calendar-alt date-icon"></i>
+                        <div class="date-text" id="dateRangeText">2025-01 至 2025-10</div>
+                        <i class="fa fa-times-circle clear-icon" id="clearDate" title="清除"></i>
+                    </div>
+                    <div class="picker-dropdown" id="pickerDropdown">
+                        <div class="picker-body">
+                            <div class="picker-panel">
+                                <div class="picker-header"><i class="fa fa-angle-double-left picker-arrow prev-year" onclick="changeYear(-1)"></i><span class="header-label" id="leftYearLabel">2025年</span></div>
+                                <div class="month-table" id="leftMonthTable"></div>
+                            </div>
+                            <div class="picker-panel">
+                                <div class="picker-header"><span class="header-label" id="rightYearLabel">2026年</span><i class="fa fa-angle-double-right picker-arrow next-year" onclick="changeYear(1)"></i></div>
+                                <div class="month-table" id="rightMonthTable"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <input type="hidden" id="realStartMonth" value="2025-01">
+                <input type="hidden" id="realEndMonth" value="2025-10">
+            </div>
+            
+            <div class="search-btns">
+                <button class="btn btn-primary" onclick="searchData()"><i class="fa fa-search"></i> 查询</button>
+                <button class="btn btn-default" onclick="resetSearch()"><i class="fa fa-sync-alt"></i> 重置</button>
+            </div>
+        </div>
+
+        <!-- 内容区 -->
+        <div class="content-panel">
+            <div class="toolbar">
+                <button class="btn btn-primary" onclick="openImportModal()"><i class="fa fa-upload"></i> 导入</button>
+                <button class="btn btn-outline-primary" onclick="openExportModal()"><i class="fa fa-file-export"></i> 导出</button>
+            </div>
+
+            <div class="table-container">
+                <table class="list-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAll" onclick="toggleSelectAll()"></th>
+                            <th style="width: 50px;">序号</th>
+                            <th>售电公司名称</th>
+                            <th>月份</th>
+                            <th style="text-align: right;">结算电量<br><span style="font-weight:normal; font-size:12px">(MWh)</span></th>
+                            <th style="text-align: right;">零售结算<br>成交价格<span style="font-weight:normal; font-size:12px">(元/MWh)</span></th>
+                            <th style="text-align: right;">零售结算<br>电费<span style="font-weight:normal; font-size:12px">(元)</span></th>
+                            <th style="text-align: right;">现货结算<br>成交价格<span style="font-weight:normal; font-size:12px">(元/MWh)</span></th>
+                            <th style="text-align: right;">现货结算<br>电费<span style="font-weight:normal; font-size:12px">(元)</span></th>
+                            <th style="text-align: right;">绿证<br>数量</th>
+                            <th style="text-align: right;">绿证结算<br>成交价格<span style="font-weight:normal; font-size:12px">(元/MWh)</span></th>
+                            <th style="text-align: right;">总考核电费/<br>考核电费<span style="font-weight:normal; font-size:12px">(元)</span></th>
+                            <th style="text-align: right;">售电公司<br>总收入<span style="font-weight:normal; font-size:12px">(元)</span></th>
+                            <th style="text-align: center; width: 140px;">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                    <tfoot id="tableFooter"></tfoot>
+                </table>
+            </div>
+
+            <div class="pagination-bar">
+                <span class="total-text" id="totalInfo">共 0 条</span>
+                <button class="pager-btn" onclick="changePage('prev')"><i class="fa fa-angle-left"></i></button>
+                <ul class="pager-list" id="pagerList"></ul>
+                <button class="pager-btn" onclick="changePage('next')"><i class="fa fa-angle-right"></i></button>
+                <select class="page-size-select" id="pageSizeSelect" onchange="changePageSize()">
+                    <option value="10" selected>10条/页</option>
+                    <option value="20">20条/页</option>
+                    <option value="50">50条/页</option>
+                </select>
+                <span>前往</span>
+                <input type="text" class="jump-input" id="jumpPageInput" value="1" onkeypress="handleJump(event)">
+                <span>页</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- 视图2：详情页 (全页展示) -->
+    <div id="view-detail" class="view-container hidden">
+        <div class="detail-page">
+            <div class="detail-header">
+                <div class="detail-title" id="pageTitle">结算单详情</div>
+                <button class="btn btn-default" onclick="hideDetailView()"><i class="fa fa-arrow-left"></i> 返回列表</button>
+            </div>
+
+            <div id="formContainer">
+                <div class="file-info-bar">
+                    <span class="file-name"><i class="fa fa-file-excel"></i> <span id="importFileName"></span><span style="font-size:12px; color:#999; margin-left:10px;">(上传时间：2025-11-20 10:00:05)</span></span>
+                    <div class="file-actions"><a class="file-btn" href="javascript:void(0)" onclick="alert('预览文件')"><i class="fa fa-eye"></i> 在线预览</a><a class="file-btn" href="javascript:void(0)" onclick="alert('下载文件')"><i class="fa fa-download"></i> 下载文件</a></div>
+                </div>
+                <div class="sheet-header"><div>售电公司名称：<span id="formCompanyName" style="text-decoration: underline;"></span></div><div>单位：兆瓦时、元、元/兆瓦时</div></div>
+                
+                <table class="sheet-table" id="settlementTable">
+                    <!-- 列宽定义区 -->
+                    <colgroup>
+                        <col style="width: 50px;"> <!-- 序号 -->
+                        <col style="width: 60px;"> <!-- 结算类型 -->
+                        <col style="width: 80px;"> <!-- 月份 -->
+                        <col>                      <!-- 交易品种 (自适应) -->
+                        <col style="width: 12%;">  <!-- 结算电量 -->
+                        <col style="width: 10%;">  <!-- 绿证数量 -->
+                        <col style="width: 12%;">  <!-- 成交价格 -->
+                        <col style="width: 12%;">  <!-- 结算电费 -->
+                    </colgroup>
+                    <thead>
+                        <tr>
+                            <th>序号</th>
+                            <th>结算类型</th>
+                            <th>月份</th>
+                            <th>交易品种</th>
+                            <th>结算电量</th>
+                            <th>绿证数量</th>
+                            <th>成交价格/<br>协议价格</th>
+                            <th>结算电费/<br>考核电费</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <!-- 零售侧 -->
+                        <tr><td>1</td><td rowspan="4" class="col-type">零售侧结算</td><td class="cell-month">202511</td><td>零售结算</td><td><input type="number" class="sheet-input" value="5880.738"></td><td><input type="number" class="sheet-input" value=""></td><td><input type="number" class="sheet-input" value="154.217"></td><td><input type="number" class="sheet-input calc-fee" value="906912.69"></td></tr>
+                        <tr><td>2</td><td class="cell-month">202511</td><td>绿证零售结算</td><td></td><td><input type="number" class="sheet-input" value="3523"></td><td><input type="number" class="sheet-input" value="235"></td><td><input type="number" class="sheet-input calc-fee" value="827905"></td></tr>
+                        <tr><td>3</td><td class="cell-month">202511</td><td>批零价差分摊电费</td><td></td><td></td><td></td><td><input type="number" class="sheet-input calc-fee" value="0"></td></tr>
+                        <tr class="row-subtotal"><td>小计：</td><td class="cell-month"></td><td></td><td><input type="number" class="sheet-input" value="5880.738" readonly></td><td><input type="number" class="sheet-input" value="3523" readonly></td><td></td><td><input type="number" class="sheet-input total-retail" value="1734817.69" readonly></td></tr>
+                        <!-- 批发侧 -->
+                        <tr><td>1</td><td rowspan="10" class="col-type">批发侧结算</td><td class="cell-month">202511</td><td>现货三部制结算</td><td><input type="number" class="sheet-input" value="5880.738"></td><td><input type="number" class="sheet-input" value=""></td><td><input type="number" class="sheet-input" value="201.411"></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="1184445.32"></td></tr>
+                        <tr><td>2</td><td class="cell-month">202511</td><td>运行补偿分摊电费</td><td></td><td></td><td></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="5710.2"></td></tr>
+                        <tr><td>3</td><td class="cell-month">202511</td><td>绿证结算</td><td></td><td><input type="number" class="sheet-input" value="3523"></td><td><input type="number" class="sheet-input" value="0.267"></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="941.5"></td></tr>
+                        <tr><td>4</td><td class="cell-month">202511</td><td>偏差收益回收电费</td><td></td><td></td><td></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="4159.18"></td></tr>
+                        <tr><td>5</td><td class="cell-month">202511</td><td>中长期交易偏差考核电费</td><td></td><td></td><td></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="22300.78"></td></tr>
+                        <tr><td>6</td><td class="cell-month">202511</td><td>用户侧偏差收益回收分摊电费</td><td></td><td></td><td></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="-3028.58"></td></tr>
+                        <tr><td>7</td><td class="cell-month">202511</td><td>发电侧中长期偏差考核分摊电费</td><td></td><td></td><td></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="-52.93"></td></tr>
+                        <tr><td>8</td><td class="cell-month">202511</td><td>市场发用电量不平衡偏差分摊电费</td><td></td><td></td><td></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="-26310.42"></td></tr>
+                        <tr><td>9</td><td class="cell-month">202511</td><td>退补联动分摊电费</td><td></td><td></td><td></td><td><input type="number" class="sheet-input calc-fee-wholesale" value="5.88"></td></tr>
+                        <tr class="row-subtotal"><td>小计：</td><td class="cell-month"></td><td></td><td><input type="number" class="sheet-input" value="5880.738" readonly></td><td><input type="number" class="sheet-input" value="3523" readonly></td><td></td><td><input type="number" class="sheet-input total-wholesale" value="1188170.93" readonly></td></tr>
+                        <!-- 总计 -->
+                        <tr class="row-total"><td>1</td><td rowspan="2" style="font-weight: bold;">售电公司收入</td><td class="cell-month">202511</td><td></td><td></td><td></td><td></td><td><input type="number" class="sheet-input" id="finalTotal" value="546646.76" readonly></td></tr>
+                        <tr class="row-total"><td>总计：</td><td class="cell-month"></td><td></td><td></td><td></td><td></td><td><input type="number" class="sheet-input" id="finalTotalDisplay" value="546646.76" readonly></td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="detail-footer">
+                <button class="btn btn-default" onclick="hideDetailView()">取消</button>
+                <button class="btn btn-primary" onclick="saveDetailData()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 弹窗 (导入/导出) -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal" style="width: 500px;">
+            <div class="modal-header"><span>批量导入</span><i class="fa fa-times" style="cursor: pointer; color: #909399;" onclick="closeModal('importModal')"></i></div>
+            <div class="modal-body">
+                <div class="upload-area" onclick="document.getElementById('fileInput').click()">
+                    <i class="fa fa-cloud-upload-alt" style="font-size: 40px; color: #c0c4cc; margin-bottom: 10px;"></i>
+                    <div style="color: #606266; margin-bottom:5px;">将文件拖到此处，或 <span class="upload-trigger" style="color:var(--primary-color)">点击上传</span></div>
+                    <div style="color: #909399; font-size: 12px;">只能上传 xlsx/xls 文件，且不超过 5MB</div>
+                    <input type="file" id="fileInput" hidden accept=".xlsx,.xls">
+                </div>
+                <div style="margin-top: 20px; text-align: center; font-size: 13px; color: #666;">请导入《广西电力交易月度结算依据》</div>
+                <div id="uploadStatus" style="margin-top:15px; text-align: center; font-size:13px; display:none;"><span style="color: var(--primary-color);"><i class="fa fa-spinner fa-spin"></i> 解析中...</span></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-default" onclick="closeModal('importModal')">关闭</button></div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="exportModal">
+        <div class="modal" style="width: 600px;">
+            <div class="modal-header"><span>导出字段配置</span><i class="fa fa-times" style="cursor: pointer; color: #909399;" onclick="closeModal('exportModal')"></i></div>
+            <div class="modal-body">
+                <p style="color:#666; margin-bottom:10px; font-size:12px;">请勾选需要导出的字段：</p>
+                <div class="export-grid">
+                    <div class="checkbox-group-title">列表基础字段</div>
+                    <label class="checkbox-item"><input type="checkbox" checked disabled> 序号</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 售电公司名称</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 结算月份</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 结算电量</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 零售结算成交价格</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 零售结算电费</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 现货结算成交价格</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 现货结算电费</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 绿证数量</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 绿证结算成交价格</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 总考核电费/考核电费</label>
+                    <label class="checkbox-item"><input type="checkbox" checked> 售电公司总收入</label>
+
+                    <div class="checkbox-group-title">详细结算字段</div>
+                    <label class="checkbox-item"><input type="checkbox"> 现货三部制结算</label>
+                    <label class="checkbox-item"><input type="checkbox"> 运行补偿分摊电费</label>
+                    <label class="checkbox-item"><input type="checkbox"> 绿证结算</label>
+                    <label class="checkbox-item"><input type="checkbox"> 偏差收益回收电费</label>
+                    <label class="checkbox-item"><input type="checkbox"> 中长期交易偏差考核电费</label>
+                    <label class="checkbox-item"><input type="checkbox"> 用户侧偏差收益回收分摊电费</label>
+                    <label class="checkbox-item"><input type="checkbox"> 发电侧中长期偏差考核分摊电费</label>
+                    <label class="checkbox-item"><input type="checkbox"> 市场发用电量不平衡偏差分摊电费</label>
+                    <label class="checkbox-item"><input type="checkbox"> 退补联动分摊电费</label>
+                    <label class="checkbox-item"><input type="checkbox"> 批零价差分摊电费</label>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-default" onclick="closeModal('exportModal')">取消</button>
+                <button class="btn btn-primary" onclick="confirmExport()">确认导出</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const companies = ["广西北投信创科技投资集团", "南宁轨道交通集团", "广西路桥工程集团", "北投信创技术分公司", "南宁轨道运营有限公司", "软件研发一部", "广西建工集团"];
+        let mockData = [], currentData = [], currentPage = 1, pageSize = 10;
+        let pickerState = { startDate: { year: 2025, month: 1 }, endDate: { year: 2025, month: 10 }, baseYear: 2025, selecting: false };
+
+        function initPicker() { /* 日期选择器初始化代码，保持不变 */ 
+            renderPickerPanels();
+            updatePickerInputDisplay();
+            document.getElementById('datePickerTrigger').addEventListener('click', (e) => {
+                if(e.target.classList.contains('clear-icon')) return;
+                const dropdown = document.getElementById('pickerDropdown');
+                const isOpen = dropdown.style.display === 'block';
+                dropdown.style.display = isOpen ? 'none' : 'block';
+                const input = document.getElementById('datePickerTrigger');
+                if(!isOpen) input.classList.add('active'); else input.classList.remove('active');
+            });
+            document.getElementById('clearDate').addEventListener('click', (e) => {
+                e.stopPropagation(); pickerState.startDate = null; pickerState.endDate = null;
+                updatePickerInputDisplay(); document.getElementById('pickerDropdown').style.display = 'none';
+            });
+            document.addEventListener('click', (e) => {
+                const container = document.getElementById('datePickerContainer');
+                if (!container.contains(e.target)) {
+                    document.getElementById('pickerDropdown').style.display = 'none';
+                    document.getElementById('datePickerTrigger').classList.remove('active');
+                }
+            });
+        }
+        function changeYear(offset) { pickerState.baseYear += offset; renderPickerPanels(); }
+        function renderPickerPanels() { /* 同前 */ 
+            document.getElementById('leftYearLabel').innerText = `${pickerState.baseYear}年`;
+            document.getElementById('rightYearLabel').innerText = `${pickerState.baseYear + 1}年`;
+            renderMonthGrid(pickerState.baseYear, 'leftMonthTable');
+            renderMonthGrid(pickerState.baseYear + 1, 'rightMonthTable');
+        }
+        function renderMonthGrid(year, elementId) { /* 同前 */ 
+            const container = document.getElementById(elementId); container.innerHTML = '';
+            const months = ['一月', '二月', '三月', '四月', '五月', '六月', '七月', '八月', '九月', '十月', '十一月', '十二月'];
+            months.forEach((m, idx) => {
+                const monthNum = idx + 1;
+                const cell = document.createElement('div'); cell.className = 'month-cell'; cell.innerText = m;
+                const currentVal = year * 12 + monthNum;
+                let startVal = pickerState.startDate ? pickerState.startDate.year * 12 + pickerState.startDate.month : -1;
+                let endVal = pickerState.endDate ? pickerState.endDate.year * 12 + pickerState.endDate.month : -1;
+                if (currentVal === startVal || currentVal === endVal) cell.classList.add('selected');
+                if (startVal !== -1 && endVal !== -1) {
+                    if (startVal > endVal) { [startVal, endVal] = [endVal, startVal]; }
+                    if (currentVal > startVal && currentVal < endVal) cell.classList.add('in-range');
+                }
+                cell.onclick = (e) => { e.stopPropagation(); handleMonthClick(year, monthNum); };
+                container.appendChild(cell);
+            });
+        }
+        function handleMonthClick(year, month) { /* 同前 */ 
+            if (!pickerState.selecting) {
+                pickerState.startDate = { year, month }; pickerState.endDate = null; pickerState.selecting = true;
+            } else {
+                pickerState.endDate = { year, month }; pickerState.selecting = false;
+                const s = pickerState.startDate.year * 12 + pickerState.startDate.month;
+                const e = pickerState.endDate.year * 12 + pickerState.endDate.month;
+                if (s > e) { const temp = pickerState.startDate; pickerState.startDate = pickerState.endDate; pickerState.endDate = temp; }
+                updatePickerInputDisplay(); document.getElementById('pickerDropdown').style.display = 'none'; document.getElementById('datePickerTrigger').classList.remove('active');
+            }
+            renderPickerPanels();
+        }
+        function updatePickerInputDisplay() { /* 同前 */ 
+            const textEl = document.getElementById('dateRangeText');
+            const startInput = document.getElementById('realStartMonth');
+            const endInput = document.getElementById('realEndMonth');
+            if (pickerState.startDate && pickerState.endDate) {
+                const startStr = `${pickerState.startDate.year}-${String(pickerState.startDate.month).padStart(2, '0')}`;
+                const endStr = `${pickerState.endDate.year}-${String(pickerState.endDate.month).padStart(2, '0')}`;
+                textEl.innerText = `${startStr} 至 ${endStr}`; textEl.classList.remove('placeholder');
+                startInput.value = startStr; endInput.value = endStr;
+            } else {
+                textEl.innerText = "开始月份 至 结束月份"; textEl.classList.add('placeholder');
+                startInput.value = ''; endInput.value = '';
+            }
+        }
+
+        // --- 业务数据逻辑 ---
+        function generateData() { /* 同前 */ 
+            const data = [];
+            for (let i = 0; i < 35; i++) {
+                const comp = companies[i % companies.length];
+                data.push({
+                    id: `ID-${i}`, company: comp, month: `2025${String((i % 10) + 1).padStart(2, '0')}`,
+                    volume: (Math.random() * 5000 + 1000), retailPrice: (Math.random() * 100 + 400), retailCost: (Math.random() * 2000000 + 500000),
+                    spotPrice: (Math.random() * 150 + 300), spotCost: (Math.random() * 500000 + 100000), greenNum: Math.floor(Math.random() * 2000), greenPrice: 30, assessCost: Math.random() * 5000, income: (Math.random() * 1000000 + 100000),
+                    fileName: `${comp}_结算依据_2025.xlsx`
+                });
+            }
+            return data;
+        }
+
+        window.onload = function() {
+            mockData = generateData(); currentData = [...mockData];
+            initPicker(); renderTable();
+            document.querySelectorAll('.calc-fee, .calc-fee-wholesale').forEach(input => input.addEventListener('input', calculateTotal));
+        };
+
+        function renderTable() { /* 保持不变 */ 
+            const tbody = document.getElementById('tableBody'); const tfoot = document.getElementById('tableFooter');
+            tbody.innerHTML = ''; tfoot.innerHTML = '';
+            const start = (currentPage - 1) * pageSize; const end = start + pageSize; const pageData = currentData.slice(start, end);
+
+            if (pageData.length === 0) { tbody.innerHTML = '<tr><td colspan="14" style="text-align:center; padding:30px; color:#909399;">暂无数据</td></tr>'; } 
+            else {
+                pageData.forEach((item, index) => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `<td style="text-align: center;"><input type="checkbox" class="row-checkbox" value="${item.id}"></td><td>${start + index + 1}</td><td><span style="font-weight:500; color:#303133;">${item.company}</span></td><td>${item.month}</td><td style="text-align: right;">${item.volume.toLocaleString(undefined, {maximumFractionDigits:3})}</td><td style="text-align: right;">${item.retailPrice.toFixed(2)}</td><td style="text-align: right;">${item.retailCost.toLocaleString(undefined, {maximumFractionDigits:2})}</td><td style="text-align: right;">${item.spotPrice.toFixed(2)}</td><td style="text-align: right;">${item.spotCost.toLocaleString(undefined, {maximumFractionDigits:2})}</td><td style="text-align: right;">${item.greenNum}</td><td style="text-align: right;">${item.greenPrice.toFixed(2)}</td><td style="text-align: right;">${item.assessCost.toLocaleString(undefined, {maximumFractionDigits:2})}</td><td style="text-align: right;">${item.income.toLocaleString(undefined, {maximumFractionDigits:2})}</td><td style="text-align: center;"><a class="action-link" onclick="showDetailView('view', '${item.company}', '${item.fileName}')">查看</a><a class="action-link" onclick="showDetailView('edit', '${item.company}', '${item.fileName}')">编辑</a><a class="action-link delete" onclick="deleteItem('${item.id}')">删除</a></td>`;
+                    tbody.appendChild(tr);
+                });
+            }
+            if (pageData.length > 0) {
+                const sumRetailCost = pageData.reduce((acc, cur) => acc + cur.retailCost, 0);
+                const sumSpotCost = pageData.reduce((acc, cur) => acc + cur.spotCost, 0);
+                const sumAssessCost = pageData.reduce((acc, cur) => acc + cur.assessCost, 0);
+                const sumIncome = pageData.reduce((acc, cur) => acc + cur.income, 0);
+                const footerTr = document.createElement('tr');
+                footerTr.innerHTML = `<td></td><td style="text-align: center;">合计</td><td colspan="4"></td><td style="text-align: right;">${sumRetailCost.toLocaleString(undefined, {maximumFractionDigits:2})}</td><td></td><td style="text-align: right;">${sumSpotCost.toLocaleString(undefined, {maximumFractionDigits:2})}</td><td></td><td></td><td style="text-align: right;">${sumAssessCost.toLocaleString(undefined, {maximumFractionDigits:2})}</td><td style="text-align: right;">${sumIncome.toLocaleString(undefined, {maximumFractionDigits:2})}</td><td></td>`;
+                tfoot.appendChild(footerTr);
+            }
+            updatePaginationUI(); const selectAll = document.getElementById('selectAll'); if(selectAll) selectAll.checked = false;
+        }
+
+        function toggleSelectAll() { const selectAll = document.getElementById('selectAll'); document.querySelectorAll('.row-checkbox').forEach(cb => cb.checked = selectAll.checked); }
+        
+        function showDetailView(mode, companyName, fileName) {
+            document.getElementById('view-list').classList.add('hidden');
+            document.getElementById('view-detail').classList.remove('hidden');
+            
+            const container = document.getElementById('formContainer');
+            const title = document.getElementById('pageTitle');
+            
+            document.getElementById('formCompanyName').innerText = companyName;
+            document.getElementById('importFileName').innerText = fileName || `${companyName}_数据文件.xlsx`;
+            
+            window.scrollTo(0, 0);
+
+            if (mode === 'view') {
+                title.innerText = '查看结算单详情';
+                container.classList.add('read-only');
+                container.querySelectorAll('input').forEach(inp => inp.setAttribute('readonly', true));
+            } else {
+                title.innerText = '编辑结算单数据';
+                container.classList.remove('read-only');
+                container.querySelectorAll('.sheet-input').forEach(inp => {
+                    if(!inp.classList.contains('total-retail') && !inp.classList.contains('total-wholesale') && inp.id !== 'finalTotal' && inp.id !== 'finalTotalDisplay') {
+                         inp.removeAttribute('readonly');
+                    }
+                });
+            }
+        }
+
+        function hideDetailView() {
+            document.getElementById('view-detail').classList.add('hidden');
+            document.getElementById('view-list').classList.remove('hidden');
+        }
+
+        function openImportModal() { document.getElementById('importModal').style.display = 'flex'; document.getElementById('uploadStatus').style.display = 'none'; }
+        function openExportModal() { document.getElementById('exportModal').style.display = 'flex'; }
+        function closeModal(id) { document.getElementById(id).style.display = 'none'; }
+        
+        document.getElementById('fileInput').addEventListener('change', function() {
+            document.getElementById('uploadStatus').style.display = 'block';
+            setTimeout(() => {
+                closeModal('importModal');
+                showDetailView('edit', '广西北投信创科技投资集团 (新导入)', '202511_导入文件.xlsx');
+            }, 1000);
+        });
+
+        function calculateTotal() { /* 保持不变 */ 
+            let retailSum = 0; document.querySelectorAll('.calc-fee').forEach(inp => retailSum += parseFloat(inp.value) || 0); document.querySelector('.total-retail').value = retailSum.toFixed(2);
+            let wholesaleSum = 0; document.querySelectorAll('.calc-fee-wholesale').forEach(inp => wholesaleSum += parseFloat(inp.value) || 0); document.querySelector('.total-wholesale').value = wholesaleSum.toFixed(2);
+            const total = retailSum - wholesaleSum; document.getElementById('finalTotal').value = total.toFixed(2); document.getElementById('finalTotalDisplay').value = total.toFixed(2);
+        }
+
+        function saveDetailData() {
+            alert("数据保存成功！");
+            hideDetailView();
+            renderTable();
+        }
+
+        function confirmExport() { closeModal('exportModal'); alert("导出任务已提交！"); }
+        function deleteItem(id) { if(confirm('确认是否删除数据？')) { mockData = mockData.filter(d => d.id !== id); searchData(); } }
+        
+        function updatePaginationUI() { /* 保持不变 */ 
+            document.getElementById('totalInfo').innerText = `共 ${currentData.length} 条`; document.getElementById('jumpPageInput').value = currentPage;
+            const totalPages = Math.ceil(currentData.length / pageSize); const pagerList = document.getElementById('pagerList'); pagerList.innerHTML = '';
+            for (let i = 1; i <= totalPages; i++) { if (i === 1 || i === totalPages || (i >= currentPage - 1 && i <= currentPage + 1)) { const li = document.createElement('li'); li.className = `pager-item ${i === currentPage ? 'active' : ''}`; li.innerText = i; li.onclick = () => { currentPage = i; renderTable(); }; pagerList.appendChild(li); } }
+        }
+        function changePage(dir) { const total = Math.ceil(currentData.length / pageSize); if (dir === 'prev' && currentPage > 1) currentPage--; if (dir === 'next' && currentPage < total) currentPage++; renderTable(); }
+        function changePageSize() { pageSize = parseInt(document.getElementById('pageSizeSelect').value); currentPage = 1; renderTable(); }
+        function searchData() { /* 保持不变 */ 
+            const startMonth = document.getElementById('realStartMonth').value.replace('-', '');
+            const endMonth = document.getElementById('realEndMonth').value.replace('-', '');
+            currentData = mockData.filter(item => { let matchMonth = true; if (startMonth && endMonth) { matchMonth = item.month >= startMonth && item.month <= endMonth; } return matchMonth; });
+            currentPage = 1; renderTable();
+        }
+        function resetSearch() { pickerState.startDate = { year: 2025, month: 1 }; pickerState.endDate = { year: 2025, month: 10 }; renderPickerPanels(); updatePickerInputDisplay(); searchData(); }
+    </script>
+</body>
+</html>

@@ -1,0 +1,924 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>售电合同管理系统 (广西国企版)</title>
+    <style>
+        /* --- 全局样式 --- */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #333;
+            font-size: 13px;
+        }
+        .main-container { padding: 20px; }
+
+        /* --- 页签与搜索 --- */
+        .tabs-nav {
+            display: flex; background: #fff; margin-bottom: 2px; border-radius: 4px 4px 0 0; padding: 0 20px;
+            border-bottom: 1px solid #f0f0f0;
+        }
+        .tab-item {
+            padding: 16px 20px; cursor: pointer; font-size: 14px; font-weight: 500; color: #666; border-bottom: 2px solid transparent; transition: all 0.3s;
+        }
+        .tab-item:hover { color: #1890ff; }
+        .tab-item.active { color: #1890ff; border-bottom-color: #1890ff; }
+
+        .search-panel { background: #fff; padding: 20px; border-radius: 0 0 2px 2px; margin-bottom: 16px; display: flex; flex-wrap: wrap; gap: 20px; align-items: center; }
+        .search-item { display: flex; align-items: center; }
+        .search-label { margin-right: 10px; font-weight: 500; white-space: nowrap; }
+
+        /* --- 按钮 --- */
+        .btn {
+            border: 1px solid transparent; cursor: pointer; padding: 4px 15px; font-size: 13px; border-radius: 2px; height: 32px; transition: all 0.3s;
+        }
+        .btn-primary { background: #1890ff; color: #fff; border-color: #1890ff; }
+        .btn-primary:hover { background: #40a9ff; border-color: #40a9ff; }
+        .btn-default { background: #fff; border-color: #d9d9d9; color: #333; }
+        .btn-default:hover { color: #40a9ff; border-color: #40a9ff; }
+        
+        .btn-link { background: none; border: none; padding: 0 5px; color: #1890ff; box-shadow: none; height: auto; cursor: pointer; }
+        .btn-link:hover { text-decoration: underline; }
+        .btn-link.danger { color: #ff4d4f; }
+        
+        .action-panel { margin-bottom: 16px; display: flex; gap: 10px; }
+
+        /* --- 表格样式 --- */
+        .table-wrapper { background: #fff; border-radius: 2px; overflow-x: auto; box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
+        table { width: 100%; border-collapse: collapse; min-width: 1500px; }
+        th, td { padding: 12px 10px; border-bottom: 1px solid #f0f0f0; text-align: left; white-space: nowrap; }
+        th { background: #fafafa; font-weight: 600; color: #000000d9; }
+        .align-right { text-align: right; }
+        .align-center { text-align: center; }
+        .sticky-col { position: sticky; right: 0; background: #fff; z-index: 2; box-shadow: -2px 0 6px rgba(0,0,0,0.05); text-align: center; }
+        th.sticky-col { background: #fafafa; }
+
+        /* 链接与标签 */
+        .customer-link, .contract-link, .assoc-link { color: #1890ff; cursor: pointer; text-decoration: none; margin-right: 4px; }
+        .customer-link:hover, .contract-link:hover, .assoc-link:hover { text-decoration: underline; }
+        
+        .level-tag {
+            display: inline-block; font-size: 11px; color: #1890ff; background-color: #e6f7ff;
+            border: 1px solid #91d5ff; padding: 0 4px; border-radius: 2px; line-height: 16px;
+            vertical-align: middle; transform: translateY(-1px);
+        }
+        
+        .count-link { color: #1890ff; font-weight: bold; cursor: pointer; border-bottom: 1px dashed #1890ff; }
+        
+        /* Tooltip */
+        #global-tooltip {
+            position: fixed; background: rgba(0, 0, 0, 0.85); color: #fff; padding: 8px 12px;
+            border-radius: 4px; font-size: 12px; z-index: 9999; pointer-events: none; display: none;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15); line-height: 1.5; white-space: pre-wrap;
+        }
+
+        /* 状态标签 */
+        .status-tag { padding: 2px 8px; border-radius: 2px; font-size: 12px; border: 1px solid; }
+        .st-active { color: #52c41a; background: #f6ffed; border-color: #b7eb8f; }
+        .st-draft { color: #faad14; background: #fffbe6; border-color: #ffe58f; }
+        .st-end { color: #ff4d4f; background: #fff2f0; border-color: #ffccc7; }
+        .st-expired { color: #8c8c8c; background: #f5f5f5; border-color: #d9d9d9; }
+
+        /* --- 表单控件 --- */
+        .ant-input, .ant-select {
+            width: 100%; height: 32px; padding: 4px 11px; border: 1px solid #d9d9d9; border-radius: 2px; outline: none; transition: all 0.3s;
+        }
+        .ant-input:focus, .ant-select:focus { border-color: #40a9ff; box-shadow: 0 0 0 2px rgba(24,144,255,0.2); }
+        .ant-input:disabled, .ant-select:disabled { background: #f5f5f5; cursor: not-allowed; color: #00000040; }
+        
+        textarea.ant-input { height: auto; min-height: 100px; }
+
+        /* --- 弹窗样式 --- */
+        .modal-mask {
+            position: fixed; top: 0; right: 0; bottom: 0; left: 0; z-index: 1000;
+            background-color: rgba(0,0,0,0.45); display: none; justify-content: center; align-items: center;
+        }
+        .modal-mask.show { display: flex; }
+        .modal-wrapper { width: 900px; background: #fff; border-radius: 4px; display: flex; flex-direction: column; max-height: 90vh; }
+        
+        /* 调整 2：变更记录弹窗加宽 */
+        .modal-wrapper.wide { width: 90vw; max-width: 1200px; }
+        
+        .modal-header { padding: 16px 24px; border-bottom: 1px solid #f0f0f0; display: flex; justify-content: space-between; font-size: 16px; font-weight: 500; }
+        .modal-body { padding: 24px 30px; overflow-y: auto; flex: 1; }
+        .modal-footer { padding: 12px 24px; border-top: 1px solid #f0f0f0; text-align: right; }
+
+        /* 表单布局 */
+        .form-section { display: none; }
+        .form-section.active { display: block; }
+        .form-row { display: flex; margin-bottom: 20px; align-items: flex-start; }
+        
+        .form-label { width: 100px; text-align: right; margin-right: 12px; padding-top: 5px; color: #333; flex-shrink: 0; }
+        .form-label.required::before { content: '*'; color: #ff4d4f; margin-right: 4px; }
+        
+        .form-input-box { flex: 1; position: relative; }
+        .input-suffix-group { display: flex; align-items: center; width: 100%; position: relative; }
+        .suffix-text { margin-left: 8px; color: #999; white-space: nowrap; }
+        .cascader-group { display: flex; gap: 10px; }
+        .cascader-group .ant-select { flex: 1; }
+
+        /* 分栏布局 */
+        .split-row { display: flex; flex: 1; gap: 20px; }
+        .split-item { flex: 1; display: flex; }
+        .split-item .form-input-box { flex: 1; }
+
+        /* 附件上传样式 */
+        .upload-box { border: 1px dashed #d9d9d9; border-radius: 2px; padding: 10px; background: #fafafa; transition: border-color 0.3s; }
+        .upload-box:hover { border-color: #40a9ff; }
+        .file-list { margin-top: 8px; }
+        .file-item { display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; background: #fff; margin-bottom: 4px; border-radius: 2px; border: 1px solid #f0f0f0; font-size: 12px; }
+        .file-item:hover { background: #e6f7ff; }
+        .file-remove { color: #ff4d4f; cursor: pointer; margin-left: 8px; }
+
+        /* --- 变更记录对比样式 --- */
+        .history-layout { display: flex; height: 500px; border: 1px solid #f0f0f0; }
+        .history-list { width: 300px; border-right: 1px solid #f0f0f0; overflow-y: auto; background: #fafafa; flex-shrink: 0; }
+        .history-item { padding: 12px 16px; border-bottom: 1px solid #f0f0f0; cursor: pointer; transition: all 0.3s; }
+        .history-item:hover { background: #e6f7ff; }
+        .history-item.active { background: #bae7ff; border-left: 4px solid #1890ff; }
+        .history-item .meta { font-size: 12px; color: #999; margin-bottom: 4px; }
+        .history-item .desc { font-size: 13px; color: #333; font-weight: 500; }
+        
+        .history-detail { flex: 1; padding: 20px; overflow-y: auto; background: #fff; }
+        .diff-table { width: 100%; border-collapse: collapse; }
+        .diff-table th, .diff-table td { border: 1px solid #e8e8e8; padding: 10px; text-align: left; }
+        .diff-table th { background: #fafafa; font-weight: 600; width: 25%; }
+        .diff-old { color: #ff4d4f; text-decoration: line-through; background: #fff1f0; }
+        .diff-new { color: #52c41a; background: #f6ffed; }
+
+        /* --- 日期组件样式 (简版) --- */
+        .month-range-editor { position: relative; width: 100%; }
+        .range-input-wrapper { display: flex; align-items: center; width: 100%; height: 32px; border: 1px solid #d9d9d9; border-radius: 2px; padding: 0 11px; cursor: pointer; background: #fff; }
+        .picker-panel { position: absolute; top: 100%; left: 0; margin-top: 5px; z-index: 2000; background: #fff; border: 1px solid #e4e7ed; box-shadow: 0 2px 12px rgba(0,0,0,0.1); display: none; width: 600px; }
+        .picker-panel.show { display: flex; }
+        .picker-content { width: 50%; padding: 10px; border-right: 1px solid #eee; }
+        .month-table { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+        .month-cell { text-align: center; cursor: pointer; padding: 8px 0; font-size: 12px; }
+        .month-cell:hover { color: #1890ff; }
+    </style>
+</head>
+<body>
+
+<!-- Tooltip -->
+<div id="global-tooltip"></div>
+
+<input type="file" id="importInput" accept=".xlsx, .xls" style="display:none" onchange="handleImport(this)">
+
+<div class="main-container">
+    
+    <!-- 页签 -->
+    <div class="tabs-nav">
+        <div class="tab-item active" id="tab-revenue" onclick="switchTab('revenue')">收入合同</div>
+        <div class="tab-item" id="tab-cost" onclick="switchTab('cost')">成本合同</div>
+        <div class="tab-item" id="tab-brokerage" onclick="switchTab('brokerage')">居间合同</div>
+    </div>
+
+    <!-- 搜索 -->
+    <div class="search-panel">
+        <!-- 调整 3：新增关联收入合同检索，默认隐藏 -->
+        <div class="search-item" id="search_assoc_box" style="display:none;">
+            <span class="search-label">关联收入合同</span>
+            <input type="text" class="ant-input" id="search_assoc" style="width: 180px;" placeholder="模糊检索收入合同">
+        </div>
+
+        <div class="search-item">
+            <span class="search-label">合同编号</span>
+            <input type="text" class="ant-input" id="search_no" style="width: 180px;" placeholder="请输入">
+        </div>
+        <div class="search-item">
+            <span class="search-label">合同名称</span>
+            <input type="text" class="ant-input" id="search_name" style="width: 180px;" placeholder="请输入">
+        </div>
+        <div class="search-item">
+            <span class="search-label" id="searchLabelName">客户名称</span>
+            <input type="text" class="ant-input" style="width: 180px;" placeholder="请输入">
+        </div>
+        <button class="btn btn-primary" onclick="renderTable()">查询</button>
+        <button class="btn btn-default" onclick="resetSearch()">重置</button>
+    </div>
+
+    <!-- 操作 -->
+    <div class="action-panel">
+        <button class="btn btn-primary" onclick="openModal('add')">＋ 新增合同</button>
+        <button class="btn btn-default" onclick="document.getElementById('importInput').click()">📥 导入合同</button>
+    </div>
+
+    <!-- 表格 -->
+    <div class="table-wrapper">
+        <table id="mainTable">
+            <thead id="tableHead"></thead>
+            <tbody id="tableBody"></tbody>
+        </table>
+    </div>
+</div>
+
+<!-- 新增/变更/详情 弹窗 -->
+<div class="modal-mask" id="addModal">
+    <div class="modal-wrapper">
+        <div class="modal-header">
+            <span id="modalTitle">合同信息</span>
+            <span style="cursor: pointer; font-size: 20px;" onclick="closeModal('addModal')">×</span>
+        </div>
+        <div class="modal-body">
+            <form id="contractForm">
+                <input type="hidden" id="editId">
+                <input type="hidden" id="editMode">
+
+                <!-- 类型选择 -->
+                <div class="form-row">
+                    <label class="form-label required">合同类型</label>
+                    <div class="form-input-box">
+                        <select class="ant-select" id="contractType" onchange="handleTypeChange()">
+                            <option value="revenue">收入合同</option>
+                            <option value="cost">成本合同</option>
+                            <option value="brokerage">居间合同</option>
+                        </select>
+                    </div>
+                </div>
+
+                <!-- ================== A. 收入合同字段 ================== -->
+                <div id="section-revenue" class="form-section active">
+                    <div class="form-row">
+                        <label class="form-label required">合同名称</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-rev" id="rev_cname"></div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">合同编号</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-rev" id="rev_no" placeholder="请输入合同编号"></div>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label required">客户名称</label>
+                        <div class="form-input-box">
+                            <div class="cascader-group">
+                                <select class="ant-select rev-l1 required-rev" id="rev_l1" onchange="handleL1Change('rev')">
+                                    <option value="">请选择一级客户</option>
+                                    <option value="广西投资集团">广西投资集团</option>
+                                    <option value="广西北部湾投资集团">广西北部湾投资集团</option>
+                                    <option value="广西交通投资集团">广西交通投资集团</option>
+                                </select>
+                                <select class="ant-select rev-l2" id="rev_l2" onchange="handleL2Change('rev')">
+                                    <option value="">请选择二级客户</option>
+                                </select>
+                                <select class="ant-select rev-l3" id="rev_l3">
+                                    <option value="">请选择三级客户</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">签约售电公司</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-rev" id="rev_company"></div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">签约单价</label>
+                        <div class="form-input-box">
+                            <div class="input-suffix-group">
+                                <input type="number" class="ant-input required-rev" id="rev_price" step="0.01">
+                                <span class="suffix-text">元/Kwh</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================== B. 成本合同字段 ================== -->
+                <div id="section-cost" class="form-section">
+                    <div class="form-row">
+                        <label class="form-label required">关联收入合同</label>
+                        <div class="form-input-box">
+                            <select class="ant-select required-cost" id="cost_assoc_rev">
+                                <option value="">请选择关联的收入合同</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">合同名称</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-cost" id="cost_cname"></div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">合同编号</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-cost" id="cost_no" placeholder="请输入合同编号"></div>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label required">供应商名称</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-cost" id="cost_supplier"></div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">联系人/电话</label>
+                        <div class="form-input-box" style="display:flex; gap:10px;">
+                            <input type="text" class="ant-input" id="cost_contact" placeholder="联系人">
+                            <input type="text" class="ant-input" id="cost_phone" placeholder="联系电话">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">常规电签约</label>
+                        <div class="form-input-box" style="display:flex; gap:10px;">
+                            <div class="input-suffix-group">
+                                <input type="number" class="ant-input required-cost" id="cost_reg_vol" placeholder="电量">
+                                <span class="suffix-text">Kwh</span>
+                            </div>
+                            <div class="input-suffix-group">
+                                <input type="number" class="ant-input required-cost" id="cost_reg_price" placeholder="单价">
+                                <span class="suffix-text">元/Kwh</span>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">绿电签约</label>
+                        <div class="form-input-box" style="display:flex; gap:10px;">
+                            <div class="input-suffix-group">
+                                <input type="number" class="ant-input" id="cost_green_vol" placeholder="电量">
+                                <span class="suffix-text">Kwh</span>
+                            </div>
+                            <div class="input-suffix-group">
+                                <input type="number" class="ant-input" id="cost_green_price" placeholder="单价">
+                                <span class="suffix-text">元/Kwh</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ================== C. 居间合同字段 ================== -->
+                <div id="section-brokerage" class="form-section">
+                    <div class="form-row">
+                        <label class="form-label required">关联收入合同</label>
+                        <div class="form-input-box">
+                            <select class="ant-select required-brok" id="brok_assoc_rev">
+                                <option value="">请选择关联的收入合同</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">合同名称</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-brok" id="brok_cname"></div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">合同编号</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-brok" id="brok_no" placeholder="请输入合同编号"></div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <label class="form-label required">客户名称</label>
+                        <div class="form-input-box">
+                            <div class="cascader-group">
+                                <select class="ant-select required-brok" id="brok_l1" onchange="handleL1Change('brok')">
+                                    <option value="">请选择一级客户</option>
+                                    <option value="广西投资集团">广西投资集团</option>
+                                    <option value="广西北部湾投资集团">广西北部湾投资集团</option>
+                                    <option value="广西交通投资集团">广西交通投资集团</option>
+                                </select>
+                                <select class="ant-select" id="brok_l2" onchange="handleL2Change('brok')">
+                                    <option value="">请选择二级客户</option>
+                                </select>
+                                <select class="ant-select" id="brok_l3">
+                                    <option value="">请选择三级客户</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <label class="form-label required">居间人名称</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-brok" id="brok_person"></div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">所属项目</label>
+                        <div class="form-input-box"><input type="text" class="ant-input required-brok" id="brok_project" placeholder="关联项目名称"></div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label">联系人/电话</label>
+                        <div class="form-input-box" style="display:flex; gap:10px;">
+                            <input type="text" class="ant-input" id="brok_contact" placeholder="联系人">
+                            <input type="text" class="ant-input" id="brok_phone" placeholder="联系电话">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <label class="form-label required">居间详情</label>
+                        <div class="form-input-box" style="display:flex; gap:10px;">
+                            <div class="input-suffix-group">
+                                <input type="number" class="ant-input required-brok" id="brok_vol" placeholder="项目电量">
+                                <span class="suffix-text">Kwh</span>
+                            </div>
+                            <div class="input-suffix-group">
+                                <input type="number" class="ant-input required-brok" id="brok_price" placeholder="居间单价">
+                                <span class="suffix-text">元/Kwh</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- === 公共字段 === -->
+                <div class="form-row">
+                    <label class="form-label required">签约周期</label>
+                    <div class="form-input-box">
+                         <div class="month-range-editor" id="monthPicker">
+                            <div class="range-input-wrapper" onclick="togglePicker(event)">
+                                <span class="range-icon">📅</span>
+                                <input type="text" id="startDisp" placeholder="开始" readonly style="border:none; width:40%; text-align:center;">
+                                <span>至</span>
+                                <input type="text" id="endDisp" placeholder="结束" readonly style="border:none; width:40%; text-align:center;">
+                            </div>
+                            <div class="picker-panel" id="pickerPanel">
+                                <div class="picker-content">
+                                    <div style="text-align:center; padding:5px;">2025年</div>
+                                    <div class="month-table" id="year2025"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 附件上传 -->
+                <div class="form-row">
+                    <label class="form-label">附件</label>
+                    <div class="form-input-box">
+                        <div class="upload-box" id="uploadArea">
+                            <button type="button" class="btn btn-default" onclick="document.getElementById('fileInput').click()">📎 上传附件</button>
+                            <input type="file" id="fileInput" style="display:none" onchange="handleFileUpload(this)">
+                            <div id="fileList" class="file-list"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 备注 -->
+                <div class="form-row">
+                    <label class="form-label">备注</label>
+                    <div class="form-input-box">
+                        <textarea class="ant-input" rows="5" placeholder="请输入备注信息"></textarea>
+                    </div>
+                </div>
+
+                <!-- 变更说明 -->
+                <div class="form-row" id="changeDescRow" style="display:none;">
+                    <label class="form-label required">变更说明</label>
+                    <div class="form-input-box">
+                        <textarea class="ant-input" id="changeDesc" rows="5" placeholder="请输入变更原因及内容摘要"></textarea>
+                    </div>
+                </div>
+
+            </form>
+        </div>
+        <!-- 底部按钮 -->
+        <div class="modal-footer" id="modalFooter">
+            <button class="btn btn-default" onclick="submitForm('draft')">保存</button>
+            <button class="btn btn-primary" onclick="submitForm('submit')">提交</button>
+        </div>
+        <div class="modal-footer" id="viewFooter" style="display:none;">
+            <button class="btn btn-primary" onclick="closeModal('addModal')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<!-- 变更记录 弹窗 -->
+<div class="modal-mask" id="historyModal">
+    <div class="modal-wrapper wide">
+        <div class="modal-header">
+            <span>合同变更记录</span>
+            <span style="cursor: pointer; font-size: 20px;" onclick="closeModal('historyModal')">×</span>
+        </div>
+        <div class="modal-body" style="padding:0;">
+            <div class="history-layout">
+                <div class="history-list" id="historyList"></div>
+                <div class="history-detail" id="historyDetail">
+                    <div style="color:#999; text-align:center; margin-top:100px;">请选择左侧记录查看详情</div>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn btn-primary" onclick="closeModal('historyModal')">关闭</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 模拟数据生成 (广西国企数据) ---
+    function generateData() {
+        const rev = [], cost = [], brok = [];
+        const statuses = ['active', 'active', 'active', 'active', 'draft', 'draft', 'expired', 'expired', 'terminated', 'terminated'];
+        
+        // 广西国企及下属单位模拟
+        const customers = [
+            { l1: '广西投资集团', l2: '广投能源集团', l3: '来宾电厂', name: '广投来宾电厂' },
+            { l1: '广西北部湾投资集团', l2: '北投化工研究院', l3: '生产部', name: '北投化工研究院' },
+            { l1: '广西交通投资集团', l2: '南宁高速运营中心', l3: '一分中心', name: '南宁运营中心' },
+            { l1: '广西现代物流集团', l2: '供应链服务公司', l3: '仓储部', name: '桂物供应链' },
+            { l1: '广西林业集团', l2: '高峰林场', l3: '造纸厂', name: '高峰林场造纸厂' },
+            { l1: '广西农垦集团', l2: '金光农场', l3: '加工厂', name: '金光农场' },
+            { l1: '广西建工集团', l2: '一建集团', l3: '南宁分公司', name: '广西一建南宁分公司' },
+            { l1: '广西北部湾国际港务集团', l2: '防城港码头', l3: '作业区', name: '防城港码头' },
+            { l1: '广西旅游发展集团', l2: '南宁饭店', l3: '后勤部', name: '南宁饭店' },
+            { l1: '广西西江开发投资集团', l2: '船闸分公司', l3: '长洲枢纽', name: '长洲船闸' }
+        ];
+
+        // 供应商 (发电企业)
+        const suppliers = ['华润电力(贺州)有限公司', '国投北部湾发电', '广西水利电业集团', '大唐桂冠电力', '南方电网综合能源', '中广核新能源', '华能广西分公司', '国电投广西公司', '广西桂东电力', '百色电力'];
+
+        // 居间人
+        const brokers = ['广西能效技术服务公司', '南宁绿能咨询', '桂林电力设计院', '柳州节能服务中心', '广西碳中和科技', '北海能源管理公司', '玉林电力服务', '钦州港能咨询', '河池光伏科技', '百色售电代理'];
+
+        for(let i=0; i<10; i++) {
+            const idx = i+1;
+            const revNo = 'REV2025' + String(idx).padStart(3, '0');
+            const costNo = 'COS2025' + String(idx).padStart(3, '0');
+            const brokNo = 'BRO2025' + String(idx).padStart(3, '0');
+            const status = statuses[i];
+            const cust = customers[i];
+
+            // 收入合同
+            rev.push({
+                id: idx, status: status, contractNo: revNo, contractName: `2025年${cust.name}购电合同`, 
+                name: cust.name, 
+                fullPath: `${cust.l1}/${cust.l2}/${cust.l3}`, 
+                level: '3级', l1: cust.l1, 
+                company: '北投信创科技有限公司', period: '2025.01-2025.12', volume: 10000+idx*500, price: 340+idx,
+                history: i===0 ? [{ date: '2025-02-15 10:30', user: '张三', desc: '根据市场调整单价', diff: [{ field: '签约单价', old: '300.00', new: '341.00' }] }] : []
+            });
+
+            // 成本合同 (关联收入ID)
+            cost.push({
+                id: idx, linkRevId: idx, 
+                status: status, contractNo: costNo, contractName: `2025年${suppliers[i]}购电合同`, 
+                supplier: suppliers[i], 
+                contact: '李经理', phone: '1390000'+idx,
+                period: '2025.01-2025.12', regVol: 50000+idx*1000, regPrice: 300+idx, greenVol: 1000+idx*100, greenPrice: 380+idx,
+                history: []
+            });
+
+            // 居间合同 (关联收入ID)
+            brok.push({
+                id: idx, linkRevId: idx, 
+                status: status, contractNo: brokNo, contractName: `${cust.name}项目居间服务合同`, 
+                name: cust.name, 
+                fullPath: `${cust.l1}/${cust.l2}/${cust.l3}`,
+                level: '3级', l1: cust.l1,
+                broker: brokers[i], project: `${cust.name}购电项目`, contact: '张三', phone: '13888888888',
+                period: '2025.01-2025.12', vol: 10000+idx*500, price: 5.00+idx*0.1,
+                history: []
+            });
+        }
+        return { rev, cost, brok };
+    }
+
+    const MOCK = generateData();
+    let REVENUE_DATA = MOCK.rev;
+    let COST_DATA = MOCK.cost;
+    let BROKERAGE_DATA = MOCK.brok;
+    
+    let currentTab = 'revenue';
+    let searchFilter = { linkRevId: null };
+
+    function init() {
+        renderTable();
+        initMonthPicker();
+        bindTooltipEvents();
+    }
+
+    // --- 页面逻辑 ---
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-item').forEach(i => i.classList.remove('active'));
+        document.getElementById(`tab-${tab}`).classList.add('active');
+        currentTab = tab;
+        
+        const labelMap = { 'revenue': '客户名称', 'cost': '供应商名称', 'brokerage': '居间人名称' };
+        document.getElementById('searchLabelName').innerText = labelMap[tab];
+        
+        // 调整 3：关联收入合同检索显隐
+        document.getElementById('search_assoc_box').style.display = (tab === 'revenue') ? 'none' : 'flex';
+
+        renderTable();
+    }
+
+    function jumpToLinked(targetTab, revId, revName) {
+        switchTab(targetTab);
+        document.getElementById('search_name').value = '';
+        searchFilter.linkRevId = revId; 
+        renderTable();
+        alert(`已跳转至${targetTab==='cost'?'成本':'居间'}合同列表，筛选关联收入合同：${revName}`);
+    }
+
+    function resetSearch() {
+        document.getElementById('search_no').value = '';
+        document.getElementById('search_name').value = '';
+        document.getElementById('search_assoc').value = '';
+        searchFilter.linkRevId = null;
+        renderTable();
+    }
+
+    function handleImport(input) {
+        if(input.files && input.files[0]) {
+            setTimeout(() => { alert(`文件 ${input.files[0].name} 导入成功！\n数据已更新。`); input.value = ''; }, 500);
+        }
+    }
+
+    // --- 渲染表格 ---
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        const thead = document.getElementById('tableHead');
+        tbody.innerHTML = '';
+
+        const filterNo = document.getElementById('search_no').value.toLowerCase();
+        const filterName = document.getElementById('search_name').value.toLowerCase();
+        const filterAssoc = document.getElementById('search_assoc').value.toLowerCase(); // 关联收入模糊搜
+
+        const filterFn = (item) => {
+            const matchNo = item.contractNo.toLowerCase().includes(filterNo);
+            const matchName = item.contractName.toLowerCase().includes(filterName);
+            // 关联ID精确筛选
+            const matchLink = searchFilter.linkRevId ? item.linkRevId === searchFilter.linkRevId : true;
+            // 关联收入名称模糊筛选
+            let matchAssoc = true;
+            if (currentTab !== 'revenue' && filterAssoc) {
+                const rev = REVENUE_DATA.find(r => r.id === item.linkRevId);
+                matchAssoc = rev && rev.contractName.toLowerCase().includes(filterAssoc);
+            }
+            return matchNo && matchName && matchLink && matchAssoc;
+        };
+
+        if (currentTab === 'revenue') {
+            searchFilter.linkRevId = null; 
+            thead.innerHTML = `<tr><th width="50">序号</th><th>合同状态</th><th>合同名称</th><th>合同编号</th><th>客户名称</th><th>所属一级客户</th><th>签约售电公司</th><th>支出合同</th><th>居间合同</th><th class="align-right">签约电量(Kwh)</th><th class="align-right">签约单价(元/Kwh)</th><th class="align-center sticky-col">操作</th></tr>`;
+            
+            REVENUE_DATA.filter(filterFn).forEach((d, i) => {
+                const linkedCosts = COST_DATA.filter(c => c.linkRevId === d.id);
+                const linkedBroks = BROKERAGE_DATA.filter(b => b.linkRevId === d.id);
+                const costTip = linkedCosts.map(c => `${c.contractName} (${c.contractNo})`).join('\n');
+                const brokTip = linkedBroks.map(b => `${b.contractName} (${b.contractNo})`).join('\n');
+                
+                // 调整 3：统计链接
+                const costHtml = linkedCosts.length > 0 ? `<span class="count-link" data-tooltip="${costTip}" onclick="jumpToLinked('cost', ${d.id}, '${d.contractName}')">${linkedCosts.length}份</span>` : '—';
+                const brokHtml = linkedBroks.length > 0 ? `<span class="count-link" data-tooltip="${brokTip}" onclick="jumpToLinked('brokerage', ${d.id}, '${d.contractName}')">${linkedBroks.length}份</span>` : '—';
+
+                const customerHtml = `<span class="customer-link" data-fullpath="${d.fullPath}">${d.name}</span><span class="level-tag">${d.level}</span>`;
+                const contractLink = `<a class="contract-link" onclick="openModal('view', ${d.id})">${d.contractName}</a>`;
+                
+                tbody.innerHTML += `<tr><td>${i+1}</td><td>${getStatusTag(d.status)}</td><td>${contractLink}</td><td>${d.contractNo}</td><td>${customerHtml}</td><td>${d.l1}</td><td>${d.company}</td><td>${costHtml}</td><td>${brokHtml}</td><td class="align-right">${d.volume.toFixed(2)}</td><td class="align-right">${d.price.toFixed(2)}</td><td class="align-center sticky-col">${getOpsButtons(d)}</td></tr>`;
+            });
+
+        } else if (currentTab === 'cost') {
+            thead.innerHTML = `<tr><th width="50">序号</th><th>合同状态</th><th>合同名称</th><th>合同编号</th><th>关联收入合同</th><th>供应商名称</th><th>联系人</th><th>联系电话</th><th class="align-right">常规电量(Kwh)</th><th class="align-right">常规单价(元/Kwh)</th><th class="align-right">绿电电量(Kwh)</th><th class="align-right">绿电单价(元/Kwh)</th><th class="align-center sticky-col">操作</th></tr>`;
+            
+            COST_DATA.filter(filterFn).forEach((d, i) => {
+                const contractLink = `<a class="contract-link" onclick="openModal('view', ${d.id})">${d.contractName}</a>`;
+                const revContract = REVENUE_DATA.find(r => r.id === d.linkRevId);
+                // 调整 6：点击查看关联收入详情
+                const revLink = revContract ? `<a class="assoc-link" onclick="openModal('view', ${revContract.id}, 'revenue')">${revContract.contractName}</a>` : '—';
+
+                tbody.innerHTML += `<tr><td>${i+1}</td><td>${getStatusTag(d.status)}</td><td>${contractLink}</td><td>${d.contractNo}</td><td>${revLink}</td><td>${d.supplier}</td><td>${d.contact}</td><td>${d.phone}</td><td class="align-right">${d.regVol}</td><td class="align-right">${d.regPrice}</td><td class="align-right">${d.greenVol}</td><td class="align-right">${d.greenPrice}</td><td class="align-center sticky-col">${getOpsButtons(d)}</td></tr>`;
+            });
+
+        } else if (currentTab === 'brokerage') {
+            thead.innerHTML = `<tr><th width="50">序号</th><th>合同状态</th><th>合同名称</th><th>合同编号</th><th>关联收入合同</th><th>客户名称</th><th>居间人名称</th><th>所属项目</th><th class="align-right">项目电量(Kwh)</th><th class="align-right">居间单价(元/Kwh)</th><th class="align-center sticky-col">操作</th></tr>`;
+            
+            BROKERAGE_DATA.filter(filterFn).forEach((d, i) => {
+                const customerHtml = `<span class="customer-link" data-fullpath="${d.fullPath}">${d.name}</span><span class="level-tag">${d.level}</span>`;
+                const contractLink = `<a class="contract-link" onclick="openModal('view', ${d.id})">${d.contractName}</a>`;
+                const revContract = REVENUE_DATA.find(r => r.id === d.linkRevId);
+                const revLink = revContract ? `<a class="assoc-link" onclick="openModal('view', ${revContract.id}, 'revenue')">${revContract.contractName}</a>` : '—';
+
+                tbody.innerHTML += `<tr><td>${i+1}</td><td>${getStatusTag(d.status)}</td><td>${contractLink}</td><td>${d.contractNo}</td><td>${revLink}</td><td>${customerHtml}</td><td>${d.broker}</td><td>${d.project}</td><td class="align-right">${d.vol}</td><td class="align-right">${d.price.toFixed(2)}</td><td class="align-center sticky-col">${getOpsButtons(d)}</td></tr>`;
+            });
+        }
+        bindTooltipEvents();
+    }
+
+    function getStatusTag(s) {
+        if(s==='active') return '<span class="status-tag st-active">生效中</span>';
+        if(s==='draft') return '<span class="status-tag st-draft">草稿</span>';
+        if(s==='expired') return '<span class="status-tag st-expired">已到期</span>';
+        if(s==='terminated') return '<span class="status-tag st-end">已终止</span>';
+        return s;
+    }
+
+    function getOpsButtons(d) {
+        let ops = '';
+        if(d.status === 'active') {
+            ops += `<button class="btn btn-link" onclick="openModal('change', ${d.id})">变更</button>`;
+            ops += `<button class="btn btn-link danger">终止</button>`;
+        } else if (d.status === 'draft') {
+            ops += `<button class="btn btn-link" onclick="openModal('edit', ${d.id})">编辑</button>`;
+            ops += `<button class="btn btn-link danger">删除</button>`;
+        } else {
+            ops += `<button class="btn btn-link" onclick="openModal('view', ${d.id})">查看</button>`;
+        }
+        if (d.history && d.history.length > 0) {
+            ops += `<button class="btn btn-link" onclick="openHistory(${d.id})">变更记录</button>`;
+        }
+        return ops;
+    }
+
+    // --- 弹窗逻辑 ---
+    function openModal(mode, id, forcedType) {
+        document.getElementById('addModal').classList.add('show');
+        document.getElementById('contractForm').reset();
+        document.getElementById('fileList').innerHTML = ''; 
+        document.getElementById('editMode').value = mode;
+        
+        let title = '';
+        if(mode==='add') title='新增合同';
+        else if(mode==='edit') title='编辑合同';
+        else if(mode==='change') title='合同变更';
+        else if(mode==='view') title='合同详情';
+        document.getElementById('modalTitle').innerText = title;
+
+        document.getElementById('changeDescRow').style.display = (mode === 'change') ? 'flex' : 'none';
+        
+        // 按钮显示
+        if(mode === 'view') {
+            document.getElementById('modalFooter').style.display = 'none';
+            document.getElementById('viewFooter').style.display = 'block';
+            document.getElementById('uploadArea').style.pointerEvents = 'none';
+            document.getElementById('uploadArea').querySelector('button').style.display = 'none';
+        } else {
+            document.getElementById('modalFooter').style.display = 'block';
+            document.getElementById('viewFooter').style.display = 'none';
+            document.getElementById('uploadArea').style.pointerEvents = 'auto';
+            document.getElementById('uploadArea').querySelector('button').style.display = 'inline-block';
+        }
+
+        const typeSel = document.getElementById('contractType');
+        typeSel.disabled = (mode !== 'add'); 
+        
+        // 支持跨类型查看
+        const targetType = forcedType || currentTab;
+        typeSel.value = targetType; 
+        
+        handleTypeChange();
+        loadRevenueContracts();
+
+        if (id && mode !== 'add') populateChangeData(id, targetType);
+        else if (mode === 'add') enableAllFields();
+
+        if (mode === 'view') disableAllFields();
+    }
+
+    function loadRevenueContracts() {
+        const costSelect = document.getElementById('cost_assoc_rev');
+        const brokSelect = document.getElementById('brok_assoc_rev');
+        costSelect.innerHTML = '<option value="">请选择关联的收入合同</option>';
+        brokSelect.innerHTML = '<option value="">请选择关联的收入合同</option>';
+        REVENUE_DATA.forEach(r => {
+            const opt = new Option(r.contractName, r.id);
+            costSelect.add(opt.cloneNode(true));
+            brokSelect.add(opt);
+        });
+    }
+
+    function closeModal(id) { document.getElementById(id).classList.remove('show'); }
+
+    function handleTypeChange() {
+        const type = document.getElementById('contractType').value;
+        document.querySelectorAll('.form-section').forEach(el => el.classList.remove('active'));
+        document.getElementById(`section-${type}`).classList.add('active');
+    }
+
+    function populateChangeData(id, type) {
+        const mode = document.getElementById('editMode').value;
+        if (mode !== 'view') enableAllFields();
+
+        let data;
+        if (type === 'revenue') {
+            data = REVENUE_DATA.find(d => d.id === id);
+            if(mode === 'change') ['rev_l1', 'rev_l2', 'rev_l3'].forEach(fid => disableField(fid));
+            if(data) {
+                document.getElementById('rev_no').value = data.contractNo;
+                document.getElementById('rev_cname').value = data.contractName;
+                document.getElementById('rev_company').value = data.company;
+                document.getElementById('rev_price').value = data.price;
+            }
+        } else if (type === 'cost') {
+            data = COST_DATA.find(d => d.id === id);
+            if(mode === 'change') disableField('cost_supplier');
+            if(data) {
+                document.getElementById('cost_no').value = data.contractNo;
+                document.getElementById('cost_cname').value = data.contractName;
+                document.getElementById('cost_supplier').value = data.supplier;
+                document.getElementById('cost_contact').value = data.contact;
+                document.getElementById('cost_phone').value = data.phone;
+                document.getElementById('cost_reg_vol').value = data.regVol;
+                document.getElementById('cost_reg_price').value = data.regPrice;
+                document.getElementById('cost_green_vol').value = data.greenVol;
+                document.getElementById('cost_green_price').value = data.greenPrice;
+                document.getElementById('cost_assoc_rev').value = data.linkRevId;
+            }
+        } else if (type === 'brokerage') {
+            data = BROKERAGE_DATA.find(d => d.id === id);
+            if(mode === 'change') ['brok_l1', 'brok_l2', 'brok_l3', 'brok_project'].forEach(fid => disableField(fid));
+            if(data) {
+                document.getElementById('brok_no').value = data.contractNo;
+                document.getElementById('brok_cname').value = data.contractName;
+                document.getElementById('brok_person').value = data.broker;
+                document.getElementById('brok_project').value = data.project;
+                document.getElementById('brok_contact').value = data.contact;
+                document.getElementById('brok_phone').value = data.phone;
+                document.getElementById('brok_vol').value = data.vol;
+                document.getElementById('brok_price').value = data.price;
+                document.getElementById('brok_assoc_rev').value = data.linkRevId;
+            }
+        }
+        if(data && data.period) {
+            const [s, e] = data.period.split('-');
+            document.getElementById('startDisp').value = s;
+            document.getElementById('endDisp').value = e;
+        }
+    }
+
+    function disableField(id) { const el = document.getElementById(id); if(el) { el.disabled = true; el.style.backgroundColor = '#f5f5f5'; } }
+    function enableAllFields() { document.querySelectorAll('input, select, textarea').forEach(el => { if(el.id!=='contractType') { el.disabled = false; el.style.backgroundColor = '#fff'; } }); }
+    function disableAllFields() { document.querySelectorAll('input, select, textarea').forEach(el => { el.disabled = true; el.style.backgroundColor = '#f5f5f5'; }); }
+
+    function handleFileUpload(input) {
+        if(input.files[0]) {
+            const div = document.createElement('div');
+            div.className = 'file-item';
+            div.innerHTML = `<span>📄 ${input.files[0].name}</span><span class="file-remove" onclick="this.parentElement.remove()">删除</span>`;
+            document.getElementById('fileList').appendChild(div);
+        }
+    }
+
+    function submitForm(action) {
+        if(action === 'draft') { alert('已保存'); closeModal('addModal'); return; }
+        const mode = document.getElementById('editMode').value;
+        const type = document.getElementById('contractType').value;
+
+        if (type === 'cost' && !document.getElementById('cost_assoc_rev').value) { alert('请选择关联的收入合同'); return; }
+        if (type === 'brokerage' && !document.getElementById('brok_assoc_rev').value) { alert('请选择关联的收入合同'); return; }
+
+        if(mode === 'change' && !document.getElementById('changeDesc').value.trim()) { alert('请填写变更说明'); return; }
+        alert(mode === 'change' ? '变更已提交' : '提交成功');
+        closeModal('addModal');
+    }
+
+    function openHistory(id) {
+        let data;
+        if(currentTab === 'revenue') data = REVENUE_DATA.find(d => d.id === id);
+        else if(currentTab === 'cost') data = COST_DATA.find(d => d.id === id);
+        else data = BROKERAGE_DATA.find(d => d.id === id);
+        
+        if (!data || !data.history) return;
+
+        const listEl = document.getElementById('historyList');
+        listEl.innerHTML = '';
+        data.history.forEach(h => {
+            const item = document.createElement('div');
+            item.className = 'history-item';
+            item.innerHTML = `<div class="meta">${h.date} | ${h.user}</div><div class="desc">${h.desc}</div>`;
+            item.onclick = () => { document.querySelectorAll('.history-item').forEach(i=>i.classList.remove('active')); item.classList.add('active'); renderDetail(h); };
+            listEl.appendChild(item);
+        });
+        document.getElementById('historyDetail').innerHTML = '<div style="color:#999;text-align:center;margin-top:50px;">请选择记录</div>';
+        document.getElementById('historyModal').classList.add('show');
+    }
+
+    function renderDetail(h) {
+        let rows = '';
+        if(h.diff) h.diff.forEach(d => rows += `<tr><td>${d.field}</td><td class="diff-old">${d.old}</td><td class="diff-new">${d.new}</td></tr>`);
+        document.getElementById('historyDetail').innerHTML = `<div style="margin-bottom:15px;"><strong>说明：</strong>${h.desc}</div><table class="diff-table"><thead><tr><th>字段</th><th>变更前</th><th>变更后</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    function bindTooltipEvents() {
+        const tip = document.getElementById('global-tooltip');
+        document.querySelectorAll('.customer-link, .count-link').forEach(el => {
+            el.addEventListener('mouseenter', e => { 
+                const text = el.dataset.fullpath || el.dataset.tooltip;
+                if(text) { tip.innerText = text; tip.style.display='block'; tip.style.left=(e.pageX+10)+'px'; tip.style.top=(e.pageY+10)+'px'; }
+            });
+            el.addEventListener('mousemove', e => { tip.style.left=(e.pageX+10)+'px'; tip.style.top=(e.pageY+10)+'px'; });
+            el.addEventListener('mouseleave', () => tip.style.display='none');
+        });
+    }
+
+    function handleL1Change(prefix) {
+        const l2 = document.getElementById(`${prefix}_l2`);
+        l2.innerHTML = '<option value="">请选择二级客户</option>';
+        l2.add(new Option('路桥建设', 's1'));
+    }
+    function handleL2Change(prefix) {
+        const l3 = document.getElementById(`${prefix}_l3`);
+        l3.innerHTML = '<option value="">请选择三级客户</option>';
+        l3.add(new Option('一分公司', 'ss1'));
+    }
+
+    function initMonthPicker() {
+        const p = document.getElementById('year2025');
+        if(p && p.childElementCount===0) {
+            for(let i=1;i<=12;i++) {
+                const d = document.createElement('div'); d.className='month-cell'; d.innerText=i+'月';
+                d.onclick = (e) => { e.stopPropagation(); document.getElementById('startDisp').value='2025-'+(i<10?'0'+i:i); document.getElementById('pickerPanel').style.display='none'; }
+                p.appendChild(d);
+            }
+        }
+    }
+    function togglePicker(e) {
+        e.stopPropagation();
+        const p = document.getElementById('pickerPanel');
+        p.style.display = p.style.display === 'flex' ? 'none' : 'flex';
+    }
+    document.addEventListener('click', e => { if(!document.getElementById('monthPicker').contains(e.target)) document.getElementById('pickerPanel').style.display='none'; });
+
+    init();
+</script>
+</body>
+</html>
